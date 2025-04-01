@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <link rel="apple-touch-icon" sizes="76x76" href="../assets/img/apple-icon.png">
+  <title>
+    Data Logs - Flood Alert System
+  </title>
+  <!-- Fonts and icons -->
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700" rel="stylesheet" />
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- CSS Files -->
+  <link id="pagestyle" href="../assets/css/argon-dashboard.css?v=2.1.0" rel="stylesheet" />
+  <style>
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .pagination button {
+      margin: 0 5px;
+      padding: 5px 10px;
+      border: 1px solid #ddd;
+      background-color: #fff;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .pagination button:hover {
+      background-color: #f0f0f0;
+    }
+    .pagination button.active {
+      background-color: #5e72e4;
+      color: white;
+      border-color: #5e72e4;
+    }
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .table-responsive {
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border-left-color: #5e72e4;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+
+<body class="g-sidenav-show bg-gray-100">
+  <div class="min-height-300 bg-primary position-absolute w-100"></div>
+  <aside class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4" id="sidenav-main">
+    <div class="sidenav-header">
+      <i class="fas fa-times p-3 cursor-pointer text-secondary opacity-5 position-absolute end-0 top-0 d-none d-xl-none" 
+         aria-hidden="true" id="iconSidenav"></i>
+      <a class="navbar-brand m-0" href="../pages/dashboard.html">
+        <span class="ms-1 font-weight-bold">Lemon - Flood Alert System</span>
+      </a>
+    </div>
+    <hr class="horizontal dark mt-0">
+    <div class="collapse navbar-collapse w-auto" id="sidenav-collapse-main">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="../pages/dashboard.html">
+            <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fa fa-tachometer text-dark text-sm opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Dashboard</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="../pages/data-logs.html">
+            <div class="icon icon-shape icon-sm border-radius-md text-center me-2 d-flex align-items-center justify-content-center">
+              <i class="fa fa-table text-dark text-sm opacity-10"></i>
+            </div>
+            <span class="nav-link-text ms-1">Data Logs</span>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </aside>
+  <main class="main-content position-relative border-radius-lg">
+    <!-- Navbar -->
+    <nav class="navbar navbar-main navbar-expand-lg px-0 mx-4 shadow-none border-radius-xl" id="navbarBlur" data-scroll="false">
+      <div class="container-fluid py-1 px-3">
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb bg-transparent mb-0 pb-0 pt-1 px-0 me-sm-6 me-5">
+            <li class="breadcrumb-item text-sm"><a class="opacity-5 text-white" href="javascript:;">Pages</a></li>
+            <li class="breadcrumb-item text-sm text-white active" aria-current="page">Data Logs</li>
+          </ol>
+          <h6 class="font-weight-bolder text-white mb-0">Data Logs</h6>
+        </nav>
+        <div class="ms-md-auto pe-md-3 d-flex align-items-center">
+          <div class="text-white d-flex flex-column align-items-end">
+            <span id="clock" class="font-weight-bolder" style="font-size: 1.5rem;"></span>
+            <span id="date" class="font-weight-bolder" style="font-size: 0.9rem;"></span>
+          </div>
+          <script src="../assets/js/clock.js"></script>
+        </div>
+      </div>
+    </nav>
+    <!-- End Navbar -->
+    <div class="container-fluid py-4">
+      <div class="row">
+        <div class="col-12">
+          <div class="card mb-4">
+            <div class="card-header pb-0">
+              <div class="row">
+                <div class="col-md-6">
+                  <h6>Sensor Data Logs</h6>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end align-items-center">
+                  <div class="d-flex gap-2">
+                    <div class="input-group input-group-sm">
+                    <input type="date" id="date-filter" class="form-control form-control-sm" style="border: 1px solid #5e72e4; border-radius: 8px; border-right: none; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                    <button class="btn btn-outline-primary mb-0" type="button" id="filter-btn">
+                      <i class="fas fa-filter"></i> Filter
+                    </button>
+                    </div>
+                  <button class="btn btn-sm btn-outline-secondary mb-0" type="button" id="reset-btn">
+                    <i class="fas fa-sync-alt"></i> Reset
+                  </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card-body px-0 pt-0 pb-2">
+              <div class="table-responsive p-0">
+                <table class="table align-items-center mb-0">
+                  <thead>
+                    <tr>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Date & Time</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Water Level (Sensor 1)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Humidity (Sensor 1)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Flow Rate (Sensor 1)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Water Level (Sensor 2)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Humidity (Sensor 2)</th>
+                      <th class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Flow Rate (Sensor 2)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="data-table-body">
+                    <tr>
+                      <td colspan="7" class="text-center">
+                        <div class="loading-spinner">
+                          <div class="spinner"></div>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer">
+              <div id="pagination" class="pagination"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Core JS Files -->
+  <script src="../assets/js/core/popper.min.js"></script>
+  <script src="../assets/js/core/bootstrap.min.js"></script>
+  <script src="../assets/js/plugins/perfect-scrollbar.min.js"></script>
+  <script src="../assets/js/plugins/smooth-scrollbar.min.js"></script>
+  
+  <script>
+    var win = navigator.platform.indexOf('Win') > -1;
+    if (win && document.querySelector('#sidenav-scrollbar')) {
+      var options = {
+        damping: '0.5'
+      }
+      Scrollbar.init(document.querySelector('#sidenav-scrollbar'), options);
+    }
+  </script>
+  
+  <!-- Github buttons -->
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+  
+  <!-- Control Center for Soft Dashboard -->
+  <script src="../assets/js/argon-dashboard.min.js?v=2.1.0"></script>
+  
+  <!-- Data Logs Script -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabaseUrl = 'https://tsiiblalobzwtzcxuzck.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w';
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Pagination variables
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    let allData = [];
+    let filteredData = [];
+
+    // DOM elements
+    const tableBody = document.getElementById('data-table-body');
+    const paginationContainer = document.getElementById('pagination');
+    const dateFilter = document.getElementById('date-filter');
+    const filterBtn = document.getElementById('filter-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    // Format date to YYYY-MM-DD
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleString();
+    }
+
+    // Fetch data from Supabase
+    async function fetchData() {
+      try {
+        showLoading();
+        
+        const { data, error } = await supabase
+          .from('sensor_data')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        allData = data;
+        filteredData = [...allData];
+        renderTable();
+        setupPagination();
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        showError('Failed to load data. Please try again.');
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // Filter data by date
+    function filterDataByDate(date) {
+      if (!date) {
+        filteredData = [...allData];
+        return;
+      }
+
+      const selectedDate = new Date(date);
+      const nextDay = new Date(selectedDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+
+      filteredData = allData.filter(item => {
+        const itemDate = new Date(item.created_at);
+        return itemDate >= selectedDate && itemDate < nextDay;
+      });
+
+      currentPage = 1; // Reset to first page after filtering
+    }
+
+    // Render table with data
+    function renderTable() {
+      tableBody.innerHTML = '';
+
+      if (filteredData.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-4">No data available</td>
+          </tr>
+        `;
+        return;
+      }
+
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      const endIndex = startIndex + rowsPerPage;
+      const paginatedData = filteredData.slice(startIndex, endIndex);
+
+      paginatedData.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-center text-sm">${formatDate(row.created_at)}</td>
+          <td class="text-center text-sm">${row.water_level_1?.toFixed(2) || '0.00'} m</td>
+          <td class="text-center text-sm">${row.humidity_1?.toFixed(2) || '0.00'}%</td>
+          <td class="text-center text-sm">${row.flow_rate_1?.toFixed(2) || '0.00'} L/s</td>
+          <td class="text-center text-sm">${row.water_level_2?.toFixed(2) || '0.00'} m</td>
+          <td class="text-center text-sm">${row.humidity_2?.toFixed(2) || '0.00'}%</td>
+          <td class="text-center text-sm">${row.flow_rate_2?.toFixed(2) || '0.00'} L/s</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // Setup pagination
+    function setupPagination() {
+      paginationContainer.innerHTML = '';
+      const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+      if (totalPages <= 1) return;
+
+      // Previous Button
+      const prevButton = document.createElement('button');
+      prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+      prevButton.disabled = currentPage === 1;
+      prevButton.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+          setupPagination();
+        }
+      });
+      paginationContainer.appendChild(prevButton);
+
+      // Page Numbers
+      const maxVisiblePages = 5;
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      if (startPage > 1) {
+        const firstPageButton = document.createElement('button');
+        firstPageButton.textContent = '1';
+        firstPageButton.addEventListener('click', () => {
+          currentPage = 1;
+          renderTable();
+          setupPagination();
+        });
+        paginationContainer.appendChild(firstPageButton);
+
+        if (startPage > 2) {
+          const ellipsis = document.createElement('span');
+          ellipsis.textContent = '...';
+          paginationContainer.appendChild(ellipsis);
+        }
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.textContent = i;
+        pageButton.className = i === currentPage ? 'active' : '';
+        pageButton.addEventListener('click', () => {
+          currentPage = i;
+          renderTable();
+          setupPagination();
+        });
+        paginationContainer.appendChild(pageButton);
+      }
+
+      if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+          const ellipsis = document.createElement('span');
+          ellipsis.textContent = '...';
+          paginationContainer.appendChild(ellipsis);
+        }
+
+        const lastPageButton = document.createElement('button');
+        lastPageButton.textContent = totalPages;
+        lastPageButton.addEventListener('click', () => {
+          currentPage = totalPages;
+          renderTable();
+          setupPagination();
+        });
+        paginationContainer.appendChild(lastPageButton);
+      }
+
+      // Next Button
+      const nextButton = document.createElement('button');
+      nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+      nextButton.disabled = currentPage === totalPages;
+      nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+          setupPagination();
+        }
+      });
+      paginationContainer.appendChild(nextButton);
+    }
+
+    // Show loading spinner
+    function showLoading() {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center">
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    // Show error message
+    function showError(message) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-danger py-4">${message}</td>
+        </tr>
+      `;
+    }
+
+    // Hide loading spinner
+    function hideLoading() {
+      // Handled by renderTable
+    }
+
+    // Event Listeners
+    filterBtn.addEventListener('click', () => {
+      filterDataByDate(dateFilter.value);
+      renderTable();
+      setupPagination();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      dateFilter.value = '';
+      filteredData = [...allData];
+      currentPage = 1;
+      renderTable();
+      setupPagination();
+    });
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', fetchData);
+  </script>
+</body>
+</html>
