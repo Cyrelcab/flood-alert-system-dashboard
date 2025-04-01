@@ -201,46 +201,76 @@
   <!-- Data Logs Script -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
+  
     const supabaseUrl = 'https://tsiiblalobzwtzcxuzck.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w';
     const supabase = createClient(supabaseUrl, supabaseKey);
-
+  
     // Pagination variables
     let currentPage = 1;
     const rowsPerPage = 10;
     let allData = [];
     let filteredData = [];
-
+  
     // DOM elements
     const tableBody = document.getElementById('data-table-body');
     const paginationContainer = document.getElementById('pagination');
     const dateFilter = document.getElementById('date-filter');
     const filterBtn = document.getElementById('filter-btn');
     const resetBtn = document.getElementById('reset-btn');
-
+  
     // Format date to YYYY-MM-DD
     function formatDate(dateString) {
       const date = new Date(dateString);
       return date.toLocaleString();
     }
-
+  
     // Fetch data from Supabase
     async function fetchData() {
       try {
         showLoading();
         
+        // First fetch existing data
         const { data, error } = await supabase
           .from('sensor_data')
           .select('*')
           .order('created_at', { ascending: false });
-
+  
         if (error) throw error;
-
+  
         allData = data;
         filteredData = [...allData];
         renderTable();
         setupPagination();
+  
+        // Then set up real-time subscription
+        const channel = supabase
+          .channel('realtime-sensor-data')
+          .on(
+            'postgres_changes',
+            {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'sensor_data',
+            },
+            (payload) => {
+              // Add new record to the beginning of the array
+              allData.unshift(payload.new);
+              filteredData.unshift(payload.new);
+              
+              // Reset to first page to show the newest data
+              currentPage = 1;
+              
+              // Update the table
+              renderTable();
+              setupPagination();
+            }
+          )
+          .subscribe();
+  
+        // Store the channel for cleanup
+        window.sensorDataChannel = channel;
+  
       } catch (err) {
         console.error('Error fetching data:', err);
         showError('Failed to load data. Please try again.');
@@ -248,30 +278,30 @@
         hideLoading();
       }
     }
-
+  
     // Filter data by date
     function filterDataByDate(date) {
       if (!date) {
         filteredData = [...allData];
         return;
       }
-
+  
       const selectedDate = new Date(date);
       const nextDay = new Date(selectedDate);
       nextDay.setDate(nextDay.getDate() + 1);
-
+  
       filteredData = allData.filter(item => {
         const itemDate = new Date(item.created_at);
         return itemDate >= selectedDate && itemDate < nextDay;
       });
-
+  
       currentPage = 1; // Reset to first page after filtering
     }
-
+  
     // Render table with data
     function renderTable() {
       tableBody.innerHTML = '';
-
+  
       if (filteredData.length === 0) {
         tableBody.innerHTML = `
           <tr>
@@ -280,11 +310,11 @@
         `;
         return;
       }
-
+  
       const startIndex = (currentPage - 1) * rowsPerPage;
       const endIndex = startIndex + rowsPerPage;
       const paginatedData = filteredData.slice(startIndex, endIndex);
-
+  
       paginatedData.forEach(row => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -299,14 +329,14 @@
         tableBody.appendChild(tr);
       });
     }
-
+  
     // Setup pagination
     function setupPagination() {
       paginationContainer.innerHTML = '';
       const totalPages = Math.ceil(filteredData.length / rowsPerPage);
-
+  
       if (totalPages <= 1) return;
-
+  
       // Previous Button
       const prevButton = document.createElement('button');
       prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
@@ -319,16 +349,16 @@
         }
       });
       paginationContainer.appendChild(prevButton);
-
+  
       // Page Numbers
       const maxVisiblePages = 5;
       let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
       let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
+  
       if (endPage - startPage + 1 < maxVisiblePages) {
         startPage = Math.max(1, endPage - maxVisiblePages + 1);
       }
-
+  
       if (startPage > 1) {
         const firstPageButton = document.createElement('button');
         firstPageButton.textContent = '1';
@@ -338,14 +368,14 @@
           setupPagination();
         });
         paginationContainer.appendChild(firstPageButton);
-
+  
         if (startPage > 2) {
           const ellipsis = document.createElement('span');
           ellipsis.textContent = '...';
           paginationContainer.appendChild(ellipsis);
         }
       }
-
+  
       for (let i = startPage; i <= endPage; i++) {
         const pageButton = document.createElement('button');
         pageButton.textContent = i;
@@ -357,14 +387,14 @@
         });
         paginationContainer.appendChild(pageButton);
       }
-
+  
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
           const ellipsis = document.createElement('span');
           ellipsis.textContent = '...';
           paginationContainer.appendChild(ellipsis);
         }
-
+  
         const lastPageButton = document.createElement('button');
         lastPageButton.textContent = totalPages;
         lastPageButton.addEventListener('click', () => {
@@ -374,7 +404,7 @@
         });
         paginationContainer.appendChild(lastPageButton);
       }
-
+  
       // Next Button
       const nextButton = document.createElement('button');
       nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
@@ -388,7 +418,7 @@
       });
       paginationContainer.appendChild(nextButton);
     }
-
+  
     // Show loading spinner
     function showLoading() {
       tableBody.innerHTML = `
@@ -401,7 +431,7 @@
         </tr>
       `;
     }
-
+  
     // Show error message
     function showError(message) {
       tableBody.innerHTML = `
@@ -410,19 +440,19 @@
         </tr>
       `;
     }
-
+  
     // Hide loading spinner
     function hideLoading() {
       // Handled by renderTable
     }
-
+  
     // Event Listeners
     filterBtn.addEventListener('click', () => {
       filterDataByDate(dateFilter.value);
       renderTable();
       setupPagination();
     });
-
+  
     resetBtn.addEventListener('click', () => {
       dateFilter.value = '';
       filteredData = [...allData];
@@ -430,9 +460,16 @@
       renderTable();
       setupPagination();
     });
-
+  
     // Initialize
     document.addEventListener('DOMContentLoaded', fetchData);
+  
+    // Cleanup when page is unloaded
+    window.addEventListener('beforeunload', () => {
+      if (window.sensorDataChannel) {
+        supabase.removeChannel(window.sensorDataChannel);
+      }
+    });
   </script>
 </body>
 </html>
