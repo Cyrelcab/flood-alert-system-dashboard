@@ -242,6 +242,7 @@
     let waterLevelChart = null;
     let realtimeChannel = null;
     let supabase = null;
+    let lastFilteredDate = null;
 
     document.addEventListener('DOMContentLoaded', function () {
       // Initialize Supabase client
@@ -296,10 +297,11 @@
     // Function to filter chart by date
     async function filterChartByDate(selectedDate) {
       try {
-        if (!selectedDate) {
-          console.error('No date selected');
-          return;
+        if (!selectedDate || selectedDate === lastFilteredDate) {
+          return; // Skip if no date is selected or the date hasn't changed
         }
+
+        lastFilteredDate = selectedDate; // Update the last filtered date
 
         console.log(`Filtering chart for date: ${selectedDate}`);
 
@@ -469,7 +471,15 @@
     async function initializeDashboard() {
       try {
         await updateDashboardCards();
-        await filterChartByDate(new Date().toISOString().split('T')[0]);
+
+        // Set the default date without triggering the onchange event
+        const dateFilter = document.getElementById('date-filter');
+        if (dateFilter) {
+          const today = new Date().toISOString().split('T')[0];
+          dateFilter.value = today; // Set the default date
+          await filterChartByDate(today); // Explicitly call the filter function
+        }
+
         setupRealtimeUpdates();
       } catch (err) {
         console.error('Initialization error:', err);
