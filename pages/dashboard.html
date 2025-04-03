@@ -26,7 +26,7 @@
       <i class="fas fa-times p-3 cursor-pointer text-secondary opacity-5 position-absolute end-0 top-0 d-none d-xl-none"
         aria-hidden="true" id="iconSidenav"></i>
       <a class="navbar-brand m-0" href=" ../pages/dashboard.html">
-        <span class="ms-1 font-weight-bold">Lemon - Flood Alert System</span>
+        <span class="ms-1 font-weight-bold font-size ">Lemon - Flood Alert System</span>
       </a>
     </div>
     <hr class="horizontal dark mt-0">
@@ -205,21 +205,63 @@
                 redMarkerElement.style.height = '24px';
                 redMarkerElement.style.filter = 'invert(18%) sepia(92%) saturate(5439%) hue-rotate(356deg) brightness(97%) contrast(122%)';
 
-                // Create green marker element  
+                // Add red marker
+                const redMarker = new maplibregl.Marker(redMarkerElement)
+                  .setLngLat([125.5846467, 8.9382816])
+                  .addTo(map);
+
+                // Add click event to the red marker
+                redMarkerElement.addEventListener('click', async () => {
+                  try {
+                    // Fetch sensor status from Supabase
+                    const { data, error } = await supabase
+                      .from('sensor_status')
+                      .select('sensor_status')
+                      .eq('sensor_id', 1) // Replace with the appropriate sensor ID or condition
+                      .single();
+
+                    if (error) throw error;
+
+                    // Display the sensor status
+                    const status = data.sensor_status ? 'Active' : 'Inactive';
+                    alert(`Sensor Status: ${status}`);
+                  } catch (err) {
+                    console.error('Error fetching sensor status:', err);
+                    alert('Failed to fetch sensor status.');
+                  }
+                });
+
+                // Create green marker element
                 const greenMarkerElement = document.createElement('div');
                 greenMarkerElement.style.width = '24px';
                 greenMarkerElement.style.height = '24px';
                 greenMarkerElement.style.color = 'green';
 
-                // Add red marker
-                new maplibregl.Marker(redMarkerElement)
-                  .setLngLat([125.5846467, 8.9382816])
-                  .addTo(map);
-
-                // Add green marker slightly offset
-                new maplibregl.Marker(greenMarkerElement)
+                // Add green marker
+                const greenMarker = new maplibregl.Marker(greenMarkerElement)
                   .setLngLat([125.5856467, 8.9392816])
                   .addTo(map);
+
+                // Add click event to the green marker
+                greenMarkerElement.addEventListener('click', async () => {
+                  try {
+                    // Fetch sensor status from Supabase
+                    const { data, error } = await supabase
+                      .from('sensor_data')
+                      .select('sensor_status')
+                      .eq('sensor_id', 2) // Replace with the appropriate sensor ID or condition
+                      .single();
+
+                    if (error) throw error;
+
+                    // Display the sensor status
+                    const status = data.sensor_status ? 'Active' : 'Inactive';
+                    alert(`Sensor Status: ${status}`);
+                  } catch (err) {
+                    console.error('Error fetching sensor status:', err);
+                    alert('Failed to fetch sensor status.');
+                  }
+                });
               </script>
             </div>
           </div>

@@ -42,5 +42,9 @@
     "gulp-open": "3.0.1",
     "sass": "1.80.2"
   },
-  "homepage": "http://creative-tim.com/product/argon-dashboard"
+  "homepage": "http://creative-tim.com/product/argon-dashboard",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "twilio": "^5.5.1"
+  }
 }
