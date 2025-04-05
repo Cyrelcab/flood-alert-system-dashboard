@@ -22,4 +22,4 @@ const sendSMS = async (body) => {
   }
 };
 
-sendSMS("Test");
+sendSMS("Testing Twilio SMS from Node.js");
