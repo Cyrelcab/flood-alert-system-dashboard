@@ -22,4 +22,4 @@ const sendSMS = async (body) => {
   }
 };
 
-sendSMS("Testing Twilio SMS from Node.js");
+sendSMS("Flood Risk Alert: Your area is at risk of flooding. Please take necessary precautions.");
