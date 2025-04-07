@@ -32,7 +32,10 @@
   </head>
 
   <body class="g-sidenav-show bg-gray-100">
-    <div class="min-height-300 bg-primary position-absolute w-100"></div>
+    <div
+      class="min-height-300  position-absolute w-100"
+      id="backdrop"
+    ></div>
     <aside
       class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4"
       id="sidenav-main"
@@ -417,6 +420,9 @@
 
             // Update the flood risk gauge
             updateFloodRiskGauge(Math.max(waterLevel1, waterLevel2)); // Use the highest water level for the gauge
+
+            // Update the background color based on flood risk
+            updateBackgroundColor(Math.max(waterLevel1, waterLevel2));
           }
         } catch (err) {
           console.error("Error updating dashboard:", err);
@@ -690,7 +696,7 @@
           labels: ["Low", "High", "Critical"], // Labels for the legend
           datasets: [
             {
-              data: [1,1.9,1], // Equal segments for each risk level
+              data: [1, 1.9, 1], // Equal segments for each risk level
               backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
               borderWidth: 0,
             },
@@ -743,6 +749,31 @@
             "gaugeNeedle plugin is not defined in the chart options."
           );
         }
+        // Update the background color based on the flood risk
+        updateBackgroundColor(waterLevel);
+      }
+
+      // Function to update the background color based on flood risk
+      function updateBackgroundColor(waterLevel) {
+        const backdropElement = document.getElementById("backdrop");
+
+        if (!backdropElement) {
+          console.error("Backdrop element not found!");
+          return;
+        }
+
+        // Determine the flood risk level
+        let backgroundColor = "#28a745"; // Default to Low (Green)
+        if (waterLevel >= 3 && waterLevel < 4) {
+          backgroundColor = "#ffc107"; // High (Yellow)
+        } else if (waterLevel >= 4) {
+          backgroundColor = "#dc3545"; // Critical (Red)
+        }
+
+        console.log("Updating backdrop background color to:", backgroundColor);
+
+        // Update the background color
+        backdropElement.style.backgroundColor = backgroundColor;
       }
     </script>
     <script type="module">
