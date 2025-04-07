@@ -31,7 +31,7 @@
   </head>
 
   <body class="g-sidenav-show bg-gray-100">
-    <div class="min-height-300 bg-primary position-absolute w-100"></div>
+    <div class="min-height-300 position-absolute w-100" id="flood-status-color"></div>
     <aside
       class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4"
       id="sidenav-main"
@@ -118,7 +118,7 @@
       <!-- End Navbar -->
       <div class="container-fluid py-4">
         <div class="row">
-          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4 me-3">
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
               <div class="card-body p-3">
                 <div class="row">
@@ -153,7 +153,7 @@
               </div>
             </div>
           </div>
-          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4 me-3">
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
               <div class="card-body p-3">
                 <div class="row">
@@ -223,6 +223,28 @@
               </div>
             </div>
           </div>
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="card h-100">
+              <div class="card-body p-3">
+                <div class="row">
+                  <div class="col-8">
+                    <div class="numbers">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold">
+                        Flood Level Status
+                      </p>
+                      <h5
+                        class="font-weight-bolder mt-3 mb-0"
+                        id="flood-status"
+                      >
+                        Normal
+                      </h5>
+                      <i class="text-sm">as of April 7, 2025</i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="row mt-6">
           <div class="col-lg-7 mb-lg-0 mb-4">
@@ -268,14 +290,14 @@
                 <div class="map-container mb-3" style="height: 300px">
                   <div id="map" style="width: 100%; height: 100%"></div>
                 </div>
-              
+
                 <!-- MapLibre Scripts -->
                 <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
                 <link
                   href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
                   rel="stylesheet"
                 />
-              
+
                 <script>
                   // Function to open popup
                   function openPop(message, lngLat, map) {
@@ -284,7 +306,7 @@
                       .setHTML(`<p>${message}</p>`)
                       .addTo(map);
                   }
-              
+
                   // Initialize the map
                   const map = new maplibregl.Map({
                     container: "map",
@@ -293,53 +315,14 @@
                     center: [125.585, 8.9388],
                     zoom: 15,
                   });
-              
-                  map.addControl(new maplibregl.NavigationControl());
-              
-                  // Function to create a toggleable marker
-                  function createToggleMarker(lng, lat, initialColor = "red") {
-                    const markerElement = document.createElement("div");
-                    markerElement.style.width = "24px";
-                    markerElement.style.height = "24px";
-                    markerElement.style.borderRadius = "50%";
-                    markerElement.style.cursor = "pointer";
-                    markerElement.style.zIndex = "9999";
-              
-                    // Set initial color
-                    let isGreen = initialColor === "green";
-                    function updateColor() {
-                      markerElement.style.backgroundColor = isGreen ? "green" : "red";
-                      markerElement.style.border = `2px solid ${isGreen ? "darkgreen" : "darkred"}`;
-                    }
-                    updateColor();
-              
-                    // Toggle on click
-                    markerElement.addEventListener("click", () => {
-                      isGreen = !isGreen;
-                      updateColor();
-                      openPop(
-                        `The marker is now ${isGreen ? "GREEN" : "RED"}!`,
-                        [lng, lat],
-                        map
-                      );
-                    });
-              
-                    new maplibregl.Marker(markerElement)
-                      .setLngLat([lng, lat])
-                      .addTo(map);
-                  }
-              
-                  // Create two toggleable markers
-                  createToggleMarker(125.5846, 8.9383, "red");
-                  createToggleMarker(125.5860, 8.9390, "green");
+
+                  
+
+                  
                 </script>
               </div>
-              
-
-              
             </div>
           </div>
-          
         </div>
       </div>
     </main>
@@ -419,15 +402,22 @@
               sensorData.water_level_2 || 0
             } m`;
 
-            // Trigger SMS if water level exceeds 4 meters
-            if (
-              sensorData.water_level_1 >= 4 ||
-              sensorData.water_level_2 >= 4
-            ) {
-              sensSMS();
-              alert(
-                "Water level exceeded 4 meters! SMS alert sent to the authorities."
-              );
+            //check the water level for status
+            if (sensorData.water_level_1 >= 1.5 && sensorData.water_level_2 >= 1.5){
+              document.getElementById("flood-status").textContent = "Flood Level";
+              document.getElementById("flood-status-color").style.background = "linear-gradient(310deg, #ff3d3d, #ea0606)";
+            }
+            else if (sensorData.water_level_1 >= 1.0 && sensorData.water_level_2 >= 1.0) {
+              document.getElementById("flood-status").textContent = "Warning Level"; 
+              document.getElementById("flood-status-color").style.background = "linear-gradient(310deg, #fbb140, #fb6340)";
+            }
+            else if (sensorData.water_level_1 >= 0.5 && sensorData.water_level_2 >= 0.5){
+              document.getElementById("flood-status").textContent = "Watch Level";
+              document.getElementById("flood-status-color").style.background = "linear-gradient(310deg, #fff176, #ffd600)";
+            }
+            else {
+              document.getElementById("flood-status").textContent = "Normal";
+              document.getElementById("flood-status-color").style.background = "linear-gradient(310deg, #98ec2d, #17ad37)";
             }
           }
         } catch (err) {
@@ -664,14 +654,40 @@
               schema: "public",
               table: "sensor_data",
             },
-            (payload) => {
-              console.log("New data inserted:", payload); // Debugging log
-              updateDashboardCards();
-              filterChartByDate(document.getElementById("date-filter").value);
+            async (payload) => {
+              console.log("New data inserted:", payload);
+
+              // Update dashboard cards immediately
+              await updateDashboardCards();
+
+              // Get the currently selected date
+              const selectedDate = document.getElementById("date-filter").value;
+              const newDataDate = new Date(payload.new.created_at)
+                .toISOString()
+                .split("T")[0];
+
+              // Only update the chart if the new data matches the currently selected date
+              if (selectedDate === newDataDate) {
+                // Fetch fresh data for the selected date to update the chart
+                const startOfDay = `${selectedDate}T00:00:00`;
+                const endOfDay = `${selectedDate}T23:59:59`;
+
+                const { data, error } = await supabase
+                  .from("sensor_data")
+                  .select("created_at, water_level_1, water_level_2")
+                  .gte("created_at", startOfDay)
+                  .lte("created_at", endOfDay)
+                  .order("created_at", { ascending: true });
+
+                if (!error && data && data.length > 0) {
+                  updateChartWithData(data, selectedDate);
+                }
+              }
             }
           )
           .subscribe();
       }
+
       //For Testing
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
