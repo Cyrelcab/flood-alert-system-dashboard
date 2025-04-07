@@ -436,15 +436,17 @@
         }
       }
     
-      // Function to format timestamp exactly as stored in Supabase
+      // Function to format timestamp with added 16 hours and convert to 12-hour format
       function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
-        // Format as HH:MM (24-hour format)
+        date.setHours(date.getHours() + 16); // Add 16 hours
+
+        // Format as HH:MM AM/PM (12-hour format)
         return date.toLocaleTimeString('en-US', {
           hour: '2-digit',
           minute: '2-digit',
-          hour12: false,
-          timeZone: 'Asia/Manila'
+          hour12: true, // Use 12-hour format
+          timeZone: 'Asia/Manila' // Ensure it matches the desired timezone
         });
       }
     
@@ -497,41 +499,20 @@
     
       // Function to update chart with data
       function updateChartWithData(chartData, dateLabel) {
-        const labels = chartData.map(record => formatTimestamp(record.created_at));
-    
-        // Update time range display
-        const firstDate = new Date(chartData[0].created_at);
-        const lastDate = new Date(chartData[chartData.length - 1].created_at);
-        document.getElementById("chart-time-range").textContent = 
-          `Data from ${formatTimestamp(firstDate)} to ${formatTimestamp(lastDate)} on ${new Date(dateLabel).toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}`;
-    
+        const labels = chartData.map(record => formatTimestamp(record.created_at)); // Use updated formatTimestamp
+
         const ctx = document.getElementById("chart-line").getContext("2d");
-    
+
         // Destroy previous chart if exists
         if (waterLevelChart) {
           waterLevelChart.destroy();
         }
-    
-        // Create gradient for chart lines
-        const gradientStroke1 = ctx.createLinearGradient(0, 230, 0, 50);
-        gradientStroke1.addColorStop(1, "rgba(94, 114, 228, 0.2)");
-        gradientStroke1.addColorStop(0.2, "rgba(94, 114, 228, 0.0)");
-        gradientStroke1.addColorStop(0, "rgba(94, 114, 228, 0)");
-    
-        const gradientStroke2 = ctx.createLinearGradient(0, 230, 0, 50);
-        gradientStroke2.addColorStop(1, "rgba(45, 206, 137, 0.2)");
-        gradientStroke2.addColorStop(0.2, "rgba(45, 206, 137, 0.0)");
-        gradientStroke2.addColorStop(0, "rgba(45, 206, 137, 0)");
-    
+
         // Create new chart
         waterLevelChart = new Chart(ctx, {
           type: "line",
           data: {
-            labels: labels,
+            labels: labels, // Use formatted timestamps as labels
             datasets: [
               {
                 label: "Sensor 1",
@@ -539,10 +520,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#5e72e4",
-                backgroundColor: gradientStroke1,
                 fill: true,
                 data: chartData.map(d => d.water_level_1),
-                maxBarThickness: 6,
               },
               {
                 label: "Sensor 2",
@@ -550,10 +529,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#2dce89",
-                backgroundColor: gradientStroke2,
                 fill: true,
                 data: chartData.map(d => d.water_level_2),
-                maxBarThickness: 6,
               },
             ],
           },
@@ -561,73 +538,30 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "top",
-              },
               tooltip: {
                 callbacks: {
+                  title: function (context) {
+                    // Display the timestamp in the tooltip with added 16 hours
+                    const dataPoint = chartData[context[0].dataIndex];
+                    return formatTimestamp(dataPoint.created_at);
+                  },
                   label: function (context) {
                     return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} m`;
                   },
-                  title: function(context) {
-                    // Show full timestamp in tooltip
-                    const dataPoint = chartData[context[0].dataIndex];
-                    return new Date(dataPoint.created_at).toLocaleString();
-                  }
                 },
               },
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: "Water Level (m)",
-                },
-                grid: {
-                  drawBorder: false,
-                  display: true,
-                  drawOnChartArea: true,
-                  drawTicks: false,
-                  borderDash: [5, 5],
-                },
-                ticks: {
-                  display: true,
-                  padding: 10,
-                  color: "#fbfbfb",
-                  font: {
-                    size: 11,
-                    family: "Open Sans",
-                    style: "normal",
-                    lineHeight: 2,
-                  },
-                  callback: function (value) {
-                    return `${value} m`;
-                  },
-                },
-              },
               x: {
                 title: {
                   display: true,
                   text: "Time",
                 },
-                grid: {
-                  drawBorder: false,
-                  display: false,
-                  drawOnChartArea: false,
-                  drawTicks: false,
-                  borderDash: [5, 5],
-                },
-                ticks: {
+              },
+              y: {
+                title: {
                   display: true,
-                  color: "#ccc",
-                  padding: 20,
-                  font: {
-                    size: 11,
-                    family: "Open Sans",
-                    style: "normal",
-                    lineHeight: 2,
-                  },
+                  text: "Water Level (m)",
                 },
               },
             },
