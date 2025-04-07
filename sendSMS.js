@@ -8,7 +8,7 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 
 const client = twilio(accountSid, authToken);
 
-const sendSMS = async (body) => {
+export const sendSMS = async (body) => {
   let msgOption = {
     from: process.env.TWILIO_PHONE_NUMBER,
     to: process.env.TO_PHONE_NUMBER,
@@ -16,10 +16,10 @@ const sendSMS = async (body) => {
   };
   try {
     const message = await client.messages.create(msgOption);
-    console.log(message);
+    console.log("SMS sent:", message.sid);
+    return { success: true, message: "SMS sent successfully" };
   } catch (error) {
-    console.error(error);
+    console.error("Error sending SMS:", error);
+    return { success: false, error: "Failed to send SMS" };
   }
 };
-
-sendSMS("Flood Risk Alert: Your area is at risk of flooding. Please take necessary precautions.");

@@ -315,6 +315,7 @@
       let supabase = null;
       let lastFilteredDate = null;
       let currentChartData = []; // Store current chart data for real-time updates
+      let lastWaterLevels = { sensor1: 0, sensor2: 0 }; // Store the last water levels for comparison
 
       document.addEventListener("DOMContentLoaded", function () {
         // Initialize Supabase client
@@ -383,20 +384,39 @@
               sensorData.water_level_2 || 0
             } m`;
 
-            // Calculate the average water level
-            const averageWaterLevel =
-              (sensorData.water_level_1 + sensorData.water_level_2) / 2;
+            // Determine thresholds for water levels
+            const waterLevel1 = sensorData.water_level_1 || 0;
+            const waterLevel2 = sensorData.water_level_2 || 0;
+
+            // Define thresholds
+            const HIGH_THRESHOLD = 3; // Example: High water level threshold
+            const CRITICAL_THRESHOLD = 4; // Example: Critical water level threshold
+
+            // Check if water levels have increased beyond thresholds
+            if (
+              (waterLevel1 > lastWaterLevels.sensor1 &&
+                waterLevel1 >= HIGH_THRESHOLD) ||
+              (waterLevel2 > lastWaterLevels.sensor2 &&
+                waterLevel2 >= HIGH_THRESHOLD)
+            ) {
+              sendSMS("Alert: Water levels have increased to HIGH levels!");
+            }
+
+            if (
+              (waterLevel1 > lastWaterLevels.sensor1 &&
+                waterLevel1 >= CRITICAL_THRESHOLD) ||
+              (waterLevel2 > lastWaterLevels.sensor2 &&
+                waterLevel2 >= CRITICAL_THRESHOLD)
+            ) {
+              sendSMS("Alert: Water levels have increased to CRITICAL levels!");
+            }
+
+            // Update the last water levels for comparison
+            lastWaterLevels.sensor1 = waterLevel1;
+            lastWaterLevels.sensor2 = waterLevel2;
 
             // Update the flood risk gauge
-            updateFloodRiskGauge(averageWaterLevel);
-
-            // Send SMS alert if average water level exceeds 4 meters
-            if (averageWaterLevel >= 4) {
-              sendSMS("Alert: Water level has exceeded 4 meters!");
-              alert(
-                "Water level exceeded 4 meters! SMS alert sent to the authorities."
-              );
-            }
+            updateFloodRiskGauge(Math.max(waterLevel1, waterLevel2)); // Use the highest water level for the gauge
           }
         } catch (err) {
           console.error("Error updating dashboard:", err);
@@ -670,7 +690,7 @@
           labels: ["Low", "High", "Critical"], // Labels for the legend
           datasets: [
             {
-              data: [33.33, 33.33, 33.33], // Equal segments for each risk level
+              data: [1,1.9,1], // Equal segments for each risk level
               backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
               borderWidth: 0,
             },
@@ -728,6 +748,28 @@
     <script type="module">
       import { sendSMS } from "../sendSMS.js";
     </script>
+    <script>
+      async function sendSMS(message) {
+        try {
+          const response = await fetch("http://localhost:3000/send-sms", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ body: message }),
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log("SMS sent successfully");
+          } else {
+            console.error("Failed to send SMS:", result.error);
+          }
+        } catch (error) {
+          console.error("Error sending SMS:", error);
+        }
+      }
+    </script>
 
     <!-- Script for the map -->
     <script>
@@ -749,7 +791,7 @@
 
         // Add initial markers (gray by default)
         sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
-        sensor2Marker = createMarker([8.939010, 125.591596], "Sensor 2", false);
+        sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
       }
 
       // Function to create a marker with status-based color
