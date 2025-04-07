@@ -281,74 +281,17 @@
                   <div id="map" style="width: 100%; height: 100%"></div>
                 </div>
 
-                <!-- MapLibre Scripts -->
-                <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+                <!-- Leaflet CSS and JS -->
                 <link
-                  href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
                   rel="stylesheet"
+                  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
                 />
-
-                <script>
-                  // Function to open popup
-                  function openPop(message, lngLat, map) {
-                    new maplibregl.Popup()
-                      .setLngLat(lngLat)
-                      .setHTML(`<p>${message}</p>`)
-                      .addTo(map);
-                  }
-
-                  // Initialize the map
-                  const map = new maplibregl.Map({
-                    container: "map",
-                    style:
-                      "https://api.maptiler.com/maps/streets-v2/style.json?key=MelpifBWqYE9JvjRYide",
-                    center: [125.585, 8.9388],
-                    zoom: 15,
-                  });
-
-                  map.addControl(new maplibregl.NavigationControl());
-
-                  // Function to create a toggleable marker
-                  function createToggleMarker(lng, lat, initialColor = "red") {
-                    const markerElement = document.createElement("div");
-                    markerElement.style.width = "24px";
-                    markerElement.style.height = "24px";
-                    markerElement.style.borderRadius = "50%";
-                    markerElement.style.cursor = "pointer";
-                    markerElement.style.zIndex = "9999";
-
-                    // Set initial color
-                    let isGreen = initialColor === "green";
-                    function updateColor() {
-                      markerElement.style.backgroundColor = isGreen
-                        ? "green"
-                        : "red";
-                      markerElement.style.border = `2px solid ${
-                        isGreen ? "darkgreen" : "darkred"
-                      }`;
-                    }
-                    updateColor();
-
-                    // Toggle on click
-                    markerElement.addEventListener("click", () => {
-                      isGreen = !isGreen;
-                      updateColor();
-                      openPop(
-                        `The marker is now ${isGreen ? "GREEN" : "RED"}!`,
-                        [lng, lat],
-                        map
-                      );
-                    });
-
-                    new maplibregl.Marker(markerElement)
-                      .setLngLat([lng, lat])
-                      .addTo(map);
-                  }
-
-                  // Create two toggleable markers
-                  createToggleMarker(125.5846, 8.9383, "red");
-                  createToggleMarker(125.586, 8.939, "green");
-                </script>
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <!-- Font Awesome for pin icons -->
+                <link
+                  rel="stylesheet"
+                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+                />
               </div>
             </div>
           </div>
@@ -372,16 +315,25 @@
       let supabase = null;
       let lastFilteredDate = null;
       let currentChartData = []; // Store current chart data for real-time updates
-    
+
       document.addEventListener("DOMContentLoaded", function () {
         // Initialize Supabase client
         const SUPABASE_URL = "https://tsiiblalobzwtzcxuzck.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w";
+        const SUPABASE_KEY =
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w";
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
+
         // Initialize everything
         initializeDashboard();
-    
+
+        initializeMap();
+
+        // Initial marker update
+        updateSensorMarkers();
+
+        // Set up real-time updates
+        setupSensorStatusUpdates();
+
         // Set up the date filter input
         const dateFilter = document.getElementById("date-filter");
         if (dateFilter) {
@@ -391,7 +343,7 @@
           });
         }
       });
-    
+
       // Function to update dashboard cards
       async function updateDashboardCards() {
         try {
@@ -400,70 +352,85 @@
             .select("*")
             .order("created_at", { ascending: false })
             .limit(1);
-    
+
           if (error) throw error;
-    
+
           if (data && data.length > 0) {
             const sensorData = data[0];
             console.log("Latest sensor data:", sensorData);
-    
+
             // Update Flow Rate card
-            document.getElementById("flow-rate-sensor-1").textContent = `${sensorData.flow_rate_1 || 0} L/s`;
-            document.getElementById("flow-rate-sensor-2").textContent = `${sensorData.flow_rate_2 || 0} L/s`;
-    
+            document.getElementById("flow-rate-sensor-1").textContent = `${
+              sensorData.flow_rate_1 || 0
+            } L/s`;
+            document.getElementById("flow-rate-sensor-2").textContent = `${
+              sensorData.flow_rate_2 || 0
+            } L/s`;
+
             // Update Humidity card
-            document.getElementById("humidity-sensor-1").textContent = `${sensorData.humidity_1 || 0}%`;
-            document.getElementById("humidity-sensor-2").textContent = `${sensorData.humidity_2 || 0}%`;
-    
+            document.getElementById("humidity-sensor-1").textContent = `${
+              sensorData.humidity_1 || 0
+            }%`;
+            document.getElementById("humidity-sensor-2").textContent = `${
+              sensorData.humidity_2 || 0
+            }%`;
+
             // Update Water Level card
-            document.getElementById("water-level-sensor-1").textContent = `${sensorData.water_level_1 || 0} m`;
-            document.getElementById("water-level-sensor-2").textContent = `${sensorData.water_level_2 || 0} m`;
-    
+            document.getElementById("water-level-sensor-1").textContent = `${
+              sensorData.water_level_1 || 0
+            } m`;
+            document.getElementById("water-level-sensor-2").textContent = `${
+              sensorData.water_level_2 || 0
+            } m`;
+
             // Calculate the average water level
-            const averageWaterLevel = (sensorData.water_level_1 + sensorData.water_level_2) / 2;
-    
+            const averageWaterLevel =
+              (sensorData.water_level_1 + sensorData.water_level_2) / 2;
+
             // Update the flood risk gauge
             updateFloodRiskGauge(averageWaterLevel);
-    
-            // Trigger SMS if water level exceeds 4 meters
+
+            // Send SMS alert if average water level exceeds 4 meters
             if (averageWaterLevel >= 4) {
               sendSMS("Alert: Water level has exceeded 4 meters!");
-              alert("Water level exceeded 4 meters! SMS alert sent to the authorities.");
+              alert(
+                "Water level exceeded 4 meters! SMS alert sent to the authorities."
+              );
             }
           }
         } catch (err) {
           console.error("Error updating dashboard:", err);
         }
       }
-    
+
       // Function to format timestamp with added 16 hours and convert to 12-hour format
       function formatTimestamp(timestamp) {
         const date = new Date(timestamp);
         date.setHours(date.getHours() + 16); // Add 16 hours
 
         // Format as HH:MM AM/PM (12-hour format)
-        return date.toLocaleTimeString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
           hour12: true, // Use 12-hour format
-          timeZone: 'Asia/Manila' // Ensure it matches the desired timezone
+          timeZone: "Asia/Manila", // Ensure it matches the desired timezone
         });
       }
-    
+
       // Function to filter chart by date
       async function filterChartByDate(selectedDate) {
         try {
           if (!selectedDate || selectedDate === lastFilteredDate) {
             return; // Skip if no date is selected or the date hasn't changed
           }
-    
+
           lastFilteredDate = selectedDate; // Update the last filtered date
           console.log(`Filtering chart for date: ${selectedDate}`);
-    
+
           // Determine the date range
           const startOfDay = `${selectedDate}T00:00:00`;
           const endOfDay = `${selectedDate}T23:59:59`;
-    
+
           // Fetch data for the selected date
           const { data, error } = await supabase
             .from("sensor_data")
@@ -471,35 +438,40 @@
             .gte("created_at", startOfDay)
             .lte("created_at", endOfDay)
             .order("created_at", { ascending: true });
-    
+
           if (error) throw error;
-    
+
           if (!data || data.length === 0) {
             console.log("No data available for the selected date");
-            document.getElementById("chart-time-range").textContent = 
-              `No data available for ${new Date(selectedDate).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}`;
+            document.getElementById(
+              "chart-time-range"
+            ).textContent = `No data available for ${new Date(
+              selectedDate
+            ).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}`;
             if (waterLevelChart) waterLevelChart.destroy();
             currentChartData = [];
             return;
           }
-    
+
           // Store the current data for real-time updates
           currentChartData = data;
-          
+
           // Update the chart with filtered data
           updateChartWithData(data, selectedDate);
         } catch (err) {
           console.error("Error filtering chart:", err);
         }
       }
-    
+
       // Function to update chart with data
       function updateChartWithData(chartData, dateLabel) {
-        const labels = chartData.map(record => formatTimestamp(record.created_at)); // Use updated formatTimestamp
+        const labels = chartData.map((record) =>
+          formatTimestamp(record.created_at)
+        ); // Use updated formatTimestamp
 
         const ctx = document.getElementById("chart-line").getContext("2d");
 
@@ -521,7 +493,7 @@
                 pointRadius: 2,
                 borderColor: "#5e72e4",
                 fill: true,
-                data: chartData.map(d => d.water_level_1),
+                data: chartData.map((d) => d.water_level_1),
               },
               {
                 label: "Sensor 2",
@@ -530,7 +502,7 @@
                 pointRadius: 2,
                 borderColor: "#2dce89",
                 fill: true,
-                data: chartData.map(d => d.water_level_2),
+                data: chartData.map((d) => d.water_level_2),
               },
             ],
           },
@@ -546,7 +518,9 @@
                     return formatTimestamp(dataPoint.created_at);
                   },
                   label: function (context) {
-                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} m`;
+                    return `${
+                      context.dataset.label
+                    }: ${context.parsed.y.toFixed(2)} m`;
                   },
                 },
               },
@@ -568,12 +542,12 @@
           },
         });
       }
-    
+
       // Initialize everything
       async function initializeDashboard() {
         try {
           await updateDashboardCards();
-    
+
           // Set the default date without triggering the onchange event
           const dateFilter = document.getElementById("date-filter");
           if (dateFilter) {
@@ -581,19 +555,19 @@
             dateFilter.value = today; // Set the default date
             await filterChartByDate(today); // Explicitly call the filter function
           }
-    
+
           setupRealtimeUpdates();
         } catch (err) {
           console.error("Initialization error:", err);
         }
       }
-    
+
       // Setup realtime updates
       function setupRealtimeUpdates() {
         if (realtimeChannel) {
           supabase.removeChannel(realtimeChannel);
         }
-    
+
         realtimeChannel = supabase
           .channel("sensor-updates")
           .on(
@@ -605,23 +579,25 @@
             },
             async (payload) => {
               console.log("New data inserted:", payload.new);
-              
+
               // Update dashboard cards immediately
               await updateDashboardCards();
-    
+
               // Get current filter date
               const selectedDate = document.getElementById("date-filter").value;
-              const newDataDate = new Date(payload.new.created_at).toISOString().split("T")[0];
-              
+              const newDataDate = new Date(payload.new.created_at)
+                .toISOString()
+                .split("T")[0];
+
               // Check if new data matches current filter date
               if (selectedDate === newDataDate) {
                 // Add new data to current chart data
                 currentChartData.push({
                   created_at: payload.new.created_at,
                   water_level_1: payload.new.water_level_1,
-                  water_level_2: payload.new.water_level_2
+                  water_level_2: payload.new.water_level_2,
                 });
-                
+
                 // Update the chart with the new data
                 updateChartWithData(currentChartData, selectedDate);
               }
@@ -629,7 +605,7 @@
           )
           .subscribe();
       }
-    
+
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
       if (win && document.querySelector("#sidenav-scrollbar")) {
@@ -751,6 +727,113 @@
     </script>
     <script type="module">
       import { sendSMS } from "../sendSMS.js";
+    </script>
+
+    <!-- Script for the map -->
+    <script>
+      // Global variables for markers
+      let sensor1Marker = null;
+      let sensor2Marker = null;
+      let map = null;
+
+      // Function to initialize the map
+      function initializeMap() {
+        // Initialize the map
+        map = L.map("map").setView([8.938112, 125.591943], 18);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Add initial markers (gray by default)
+        sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
+        sensor2Marker = createMarker([8.939010, 125.591596], "Sensor 2", false);
+      }
+
+      // Function to create a marker with status-based color
+      function createMarker(location, name, isActive) {
+        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+
+        const customIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        const marker = L.marker(location, {
+          icon: customIcon,
+        }).addTo(map);
+
+        marker.bindPopup(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+        return marker;
+      }
+
+      // Function to update markers based on sensor status
+      async function updateSensorMarkers() {
+        try {
+          const { data, error } = await supabase
+            .from("sensor_status")
+            .select("*")
+            .limit(1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const status = data[0];
+            console.log("Sensor status:", status);
+
+            // Update sensor 1 marker icon
+            updateMarker(sensor1Marker, "Sensor 1", status.sensor1);
+
+            // Update sensor 2 marker icon
+            updateMarker(sensor2Marker, "Sensor 2", status.sensor2);
+          }
+        } catch (err) {
+          console.error("Error updating markers:", err);
+        }
+      }
+
+      // Function to update a specific marker
+      function updateMarker(marker, name, isActive) {
+        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+
+        const newIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        marker.setIcon(newIcon);
+        marker.setPopupContent(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+      }
+
+      // Set up real-time updates for sensor status
+      function setupSensorStatusUpdates() {
+        const statusChannel = supabase
+          .channel("sensor-status-updates")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "sensor_status",
+            },
+            () => {
+              updateSensorMarkers(); // Update markers whenever the sensor status changes
+            }
+          )
+          .subscribe();
+      }
     </script>
   </body>
 </html>
