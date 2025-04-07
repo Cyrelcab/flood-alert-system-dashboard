@@ -281,74 +281,17 @@
                   <div id="map" style="width: 100%; height: 100%"></div>
                 </div>
 
-                <!-- MapLibre Scripts -->
-                <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+                <!-- Leaflet CSS and JS -->
                 <link
-                  href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css"
                   rel="stylesheet"
+                  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
                 />
-
-                <script>
-                  // Function to open popup
-                  function openPop(message, lngLat, map) {
-                    new maplibregl.Popup()
-                      .setLngLat(lngLat)
-                      .setHTML(`<p>${message}</p>`)
-                      .addTo(map);
-                  }
-
-                  // Initialize the map
-                  const map = new maplibregl.Map({
-                    container: "map",
-                    style:
-                      "https://api.maptiler.com/maps/streets-v2/style.json?key=MelpifBWqYE9JvjRYide",
-                    center: [125.585, 8.9388],
-                    zoom: 15,
-                  });
-
-                  map.addControl(new maplibregl.NavigationControl());
-
-                  // Function to create a toggleable marker
-                  function createToggleMarker(lng, lat, initialColor = "red") {
-                    const markerElement = document.createElement("div");
-                    markerElement.style.width = "24px";
-                    markerElement.style.height = "24px";
-                    markerElement.style.borderRadius = "50%";
-                    markerElement.style.cursor = "pointer";
-                    markerElement.style.zIndex = "9999";
-
-                    // Set initial color
-                    let isGreen = initialColor === "green";
-                    function updateColor() {
-                      markerElement.style.backgroundColor = isGreen
-                        ? "green"
-                        : "red";
-                      markerElement.style.border = `2px solid ${
-                        isGreen ? "darkgreen" : "darkred"
-                      }`;
-                    }
-                    updateColor();
-
-                    // Toggle on click
-                    markerElement.addEventListener("click", () => {
-                      isGreen = !isGreen;
-                      updateColor();
-                      openPop(
-                        `The marker is now ${isGreen ? "GREEN" : "RED"}!`,
-                        [lng, lat],
-                        map
-                      );
-                    });
-
-                    new maplibregl.Marker(markerElement)
-                      .setLngLat([lng, lat])
-                      .addTo(map);
-                  }
-
-                  // Create two toggleable markers
-                  createToggleMarker(125.5846, 8.9383, "red");
-                  createToggleMarker(125.586, 8.939, "green");
-                </script>
+                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                <!-- Font Awesome for pin icons -->
+                <link
+                  rel="stylesheet"
+                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+                />
               </div>
             </div>
           </div>
@@ -371,6 +314,7 @@
       let realtimeChannel = null;
       let supabase = null;
       let lastFilteredDate = null;
+      let currentChartData = []; // Store current chart data for real-time updates
 
       document.addEventListener("DOMContentLoaded", function () {
         // Initialize Supabase client
@@ -381,6 +325,14 @@
 
         // Initialize everything
         initializeDashboard();
+
+        initializeMap();
+
+        // Initial marker update
+        updateSensorMarkers();
+
+        // Set up real-time updates
+        setupSensorStatusUpdates();
 
         // Set up the date filter input
         const dateFilter = document.getElementById("date-filter");
@@ -405,7 +357,7 @@
 
           if (data && data.length > 0) {
             const sensorData = data[0];
-            console.log("Latest sensor data:", sensorData); // Debugging log
+            console.log("Latest sensor data:", sensorData);
 
             // Update Flow Rate card
             document.getElementById("flow-rate-sensor-1").textContent = `${
@@ -438,7 +390,7 @@
             // Update the flood risk gauge
             updateFloodRiskGauge(averageWaterLevel);
 
-            // Trigger SMS if water level exceeds 4 meters
+            // Send SMS alert if average water level exceeds 4 meters
             if (averageWaterLevel >= 4) {
               sendSMS("Alert: Water level has exceeded 4 meters!");
               alert(
@@ -451,6 +403,20 @@
         }
       }
 
+      // Function to format timestamp with added 16 hours and convert to 12-hour format
+      function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        date.setHours(date.getHours() + 16); // Add 16 hours
+
+        // Format as HH:MM AM/PM (12-hour format)
+        return date.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true, // Use 12-hour format
+          timeZone: "Asia/Manila", // Ensure it matches the desired timezone
+        });
+      }
+
       // Function to filter chart by date
       async function filterChartByDate(selectedDate) {
         try {
@@ -459,7 +425,6 @@
           }
 
           lastFilteredDate = selectedDate; // Update the last filtered date
-
           console.log(`Filtering chart for date: ${selectedDate}`);
 
           // Determine the date range
@@ -473,8 +438,6 @@
             .gte("created_at", startOfDay)
             .lte("created_at", endOfDay)
             .order("created_at", { ascending: true });
-
-          console.log("Fetched data:", data);
 
           if (error) throw error;
 
@@ -490,8 +453,12 @@
               year: "numeric",
             })}`;
             if (waterLevelChart) waterLevelChart.destroy();
+            currentChartData = [];
             return;
           }
+
+          // Store the current data for real-time updates
+          currentChartData = data;
 
           // Update the chart with filtered data
           updateChartWithData(data, selectedDate);
@@ -502,26 +469,9 @@
 
       // Function to update chart with data
       function updateChartWithData(chartData, dateLabel) {
-        const labels = chartData.map((record) => {
-          const date = new Date(record.created_at);
-          return date.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-        });
-
-        // Update time range display
-        const firstDate = new Date(chartData[0].created_at);
-        const lastDate = new Date(chartData[chartData.length - 1].created_at);
-        document.getElementById(
-          "chart-time-range"
-        ).textContent = `Data from ${firstDate.toLocaleTimeString()} to ${lastDate.toLocaleTimeString()} on ${new Date(
-          dateLabel
-        ).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })}`;
+        const labels = chartData.map((record) =>
+          formatTimestamp(record.created_at)
+        ); // Use updated formatTimestamp
 
         const ctx = document.getElementById("chart-line").getContext("2d");
 
@@ -530,22 +480,11 @@
           waterLevelChart.destroy();
         }
 
-        // Create gradient for chart lines
-        const gradientStroke1 = ctx.createLinearGradient(0, 230, 0, 50);
-        gradientStroke1.addColorStop(1, "rgba(94, 114, 228, 0.2)");
-        gradientStroke1.addColorStop(0.2, "rgba(94, 114, 228, 0.0)");
-        gradientStroke1.addColorStop(0, "rgba(94, 114, 228, 0)");
-
-        const gradientStroke2 = ctx.createLinearGradient(0, 230, 0, 50);
-        gradientStroke2.addColorStop(1, "rgba(45, 206, 137, 0.2)");
-        gradientStroke2.addColorStop(0.2, "rgba(45, 206, 137, 0.0)");
-        gradientStroke2.addColorStop(0, "rgba(45, 206, 137, 0)");
-
         // Create new chart
         waterLevelChart = new Chart(ctx, {
           type: "line",
           data: {
-            labels: labels,
+            labels: labels, // Use formatted timestamps as labels
             datasets: [
               {
                 label: "Sensor 1",
@@ -553,10 +492,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#5e72e4",
-                backgroundColor: gradientStroke1,
                 fill: true,
                 data: chartData.map((d) => d.water_level_1),
-                maxBarThickness: 6,
               },
               {
                 label: "Sensor 2",
@@ -564,10 +501,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#2dce89",
-                backgroundColor: gradientStroke2,
                 fill: true,
                 data: chartData.map((d) => d.water_level_2),
-                maxBarThickness: 6,
               },
             ],
           },
@@ -575,11 +510,13 @@
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-              legend: {
-                position: "top",
-              },
               tooltip: {
                 callbacks: {
+                  title: function (context) {
+                    // Display the timestamp in the tooltip with added 16 hours
+                    const dataPoint = chartData[context[0].dataIndex];
+                    return formatTimestamp(dataPoint.created_at);
+                  },
                   label: function (context) {
                     return `${
                       context.dataset.label
@@ -589,56 +526,16 @@
               },
             },
             scales: {
-              y: {
-                beginAtZero: true,
-                title: {
-                  display: true,
-                  text: "Water Level (m)",
-                },
-                grid: {
-                  drawBorder: false,
-                  display: true,
-                  drawOnChartArea: true,
-                  drawTicks: false,
-                  borderDash: [5, 5],
-                },
-                ticks: {
-                  display: true,
-                  padding: 10,
-                  color: "#fbfbfb",
-                  font: {
-                    size: 11,
-                    family: "Open Sans",
-                    style: "normal",
-                    lineHeight: 2,
-                  },
-                  callback: function (value) {
-                    return `${value} m`;
-                  },
-                },
-              },
               x: {
                 title: {
                   display: true,
                   text: "Time",
                 },
-                grid: {
-                  drawBorder: false,
-                  display: false,
-                  drawOnChartArea: false,
-                  drawTicks: false,
-                  borderDash: [5, 5],
-                },
-                ticks: {
+              },
+              y: {
+                title: {
                   display: true,
-                  color: "#ccc",
-                  padding: 20,
-                  font: {
-                    size: 11,
-                    family: "Open Sans",
-                    style: "normal",
-                    lineHeight: 2,
-                  },
+                  text: "Water Level (m)",
                 },
               },
             },
@@ -680,15 +577,35 @@
               schema: "public",
               table: "sensor_data",
             },
-            (payload) => {
-              console.log("New data inserted:", payload); // Debugging log
-              updateDashboardCards();
-              filterChartByDate(document.getElementById("date-filter").value);
+            async (payload) => {
+              console.log("New data inserted:", payload.new);
+
+              // Update dashboard cards immediately
+              await updateDashboardCards();
+
+              // Get current filter date
+              const selectedDate = document.getElementById("date-filter").value;
+              const newDataDate = new Date(payload.new.created_at)
+                .toISOString()
+                .split("T")[0];
+
+              // Check if new data matches current filter date
+              if (selectedDate === newDataDate) {
+                // Add new data to current chart data
+                currentChartData.push({
+                  created_at: payload.new.created_at,
+                  water_level_1: payload.new.water_level_1,
+                  water_level_2: payload.new.water_level_2,
+                });
+
+                // Update the chart with the new data
+                updateChartWithData(currentChartData, selectedDate);
+              }
             }
           )
           .subscribe();
       }
-      //For Testing
+
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
       if (win && document.querySelector("#sidenav-scrollbar")) {
@@ -774,7 +691,7 @@
                   size: 14, // Font size for legend labels
                 },
                 color: "#333", // Font color for legend labels
-                padding: 10, // Padding between legend items
+                padding: 23, // Padding between legend items
               },
             },
             tooltip: {
@@ -807,12 +724,116 @@
           );
         }
       }
-
-      // Example: Update the gauge dynamically
-      updateFloodRiskGauge(2.5); // Pass the current water level (e.g., 2.5 meters)
     </script>
     <script type="module">
       import { sendSMS } from "../sendSMS.js";
+    </script>
+
+    <!-- Script for the map -->
+    <script>
+      // Global variables for markers
+      let sensor1Marker = null;
+      let sensor2Marker = null;
+      let map = null;
+
+      // Function to initialize the map
+      function initializeMap() {
+        // Initialize the map
+        map = L.map("map").setView([8.938112, 125.591943], 18);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "© OpenStreetMap contributors",
+        }).addTo(map);
+
+        // Add initial markers (gray by default)
+        sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
+        sensor2Marker = createMarker([8.939010, 125.591596], "Sensor 2", false);
+      }
+
+      // Function to create a marker with status-based color
+      function createMarker(location, name, isActive) {
+        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+
+        const customIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        const marker = L.marker(location, {
+          icon: customIcon,
+        }).addTo(map);
+
+        marker.bindPopup(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+        return marker;
+      }
+
+      // Function to update markers based on sensor status
+      async function updateSensorMarkers() {
+        try {
+          const { data, error } = await supabase
+            .from("sensor_status")
+            .select("*")
+            .limit(1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            const status = data[0];
+            console.log("Sensor status:", status);
+
+            // Update sensor 1 marker icon
+            updateMarker(sensor1Marker, "Sensor 1", status.sensor1);
+
+            // Update sensor 2 marker icon
+            updateMarker(sensor2Marker, "Sensor 2", status.sensor2);
+          }
+        } catch (err) {
+          console.error("Error updating markers:", err);
+        }
+      }
+
+      // Function to update a specific marker
+      function updateMarker(marker, name, isActive) {
+        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+
+        const newIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
+
+        marker.setIcon(newIcon);
+        marker.setPopupContent(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+      }
+
+      // Set up real-time updates for sensor status
+      function setupSensorStatusUpdates() {
+        const statusChannel = supabase
+          .channel("sensor-status-updates")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "sensor_status",
+            },
+            () => {
+              updateSensorMarkers(); // Update markers whenever the sensor status changes
+            }
+          )
+          .subscribe();
+      }
     </script>
   </body>
 </html>
