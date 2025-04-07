@@ -371,17 +371,17 @@
       let realtimeChannel = null;
       let supabase = null;
       let lastFilteredDate = null;
-
+      let currentChartData = []; // Store current chart data for real-time updates
+    
       document.addEventListener("DOMContentLoaded", function () {
         // Initialize Supabase client
         const SUPABASE_URL = "https://tsiiblalobzwtzcxuzck.supabase.co";
-        const SUPABASE_KEY =
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w";
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
+    
         // Initialize everything
         initializeDashboard();
-
+    
         // Set up the date filter input
         const dateFilter = document.getElementById("date-filter");
         if (dateFilter) {
@@ -391,7 +391,7 @@
           });
         }
       });
-
+    
       // Function to update dashboard cards
       async function updateDashboardCards() {
         try {
@@ -400,72 +400,68 @@
             .select("*")
             .order("created_at", { ascending: false })
             .limit(1);
-
+    
           if (error) throw error;
-
+    
           if (data && data.length > 0) {
             const sensorData = data[0];
-            console.log("Latest sensor data:", sensorData); // Debugging log
-
+            console.log("Latest sensor data:", sensorData);
+    
             // Update Flow Rate card
-            document.getElementById("flow-rate-sensor-1").textContent = `${
-              sensorData.flow_rate_1 || 0
-            } L/s`;
-            document.getElementById("flow-rate-sensor-2").textContent = `${
-              sensorData.flow_rate_2 || 0
-            } L/s`;
-
+            document.getElementById("flow-rate-sensor-1").textContent = `${sensorData.flow_rate_1 || 0} L/s`;
+            document.getElementById("flow-rate-sensor-2").textContent = `${sensorData.flow_rate_2 || 0} L/s`;
+    
             // Update Humidity card
-            document.getElementById("humidity-sensor-1").textContent = `${
-              sensorData.humidity_1 || 0
-            }%`;
-            document.getElementById("humidity-sensor-2").textContent = `${
-              sensorData.humidity_2 || 0
-            }%`;
-
+            document.getElementById("humidity-sensor-1").textContent = `${sensorData.humidity_1 || 0}%`;
+            document.getElementById("humidity-sensor-2").textContent = `${sensorData.humidity_2 || 0}%`;
+    
             // Update Water Level card
-            document.getElementById("water-level-sensor-1").textContent = `${
-              sensorData.water_level_1 || 0
-            } m`;
-            document.getElementById("water-level-sensor-2").textContent = `${
-              sensorData.water_level_2 || 0
-            } m`;
-
+            document.getElementById("water-level-sensor-1").textContent = `${sensorData.water_level_1 || 0} m`;
+            document.getElementById("water-level-sensor-2").textContent = `${sensorData.water_level_2 || 0} m`;
+    
             // Calculate the average water level
-            const averageWaterLevel =
-              (sensorData.water_level_1 + sensorData.water_level_2) / 2;
-
+            const averageWaterLevel = (sensorData.water_level_1 + sensorData.water_level_2) / 2;
+    
             // Update the flood risk gauge
             updateFloodRiskGauge(averageWaterLevel);
-
+    
             // Trigger SMS if water level exceeds 4 meters
             if (averageWaterLevel >= 4) {
               sendSMS("Alert: Water level has exceeded 4 meters!");
-              alert(
-                "Water level exceeded 4 meters! SMS alert sent to the authorities."
-              );
+              alert("Water level exceeded 4 meters! SMS alert sent to the authorities.");
             }
           }
         } catch (err) {
           console.error("Error updating dashboard:", err);
         }
       }
-
+    
+      // Function to format timestamp exactly as stored in Supabase
+      function formatTimestamp(timestamp) {
+        const date = new Date(timestamp);
+        // Format as HH:MM (24-hour format)
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Manila'
+        });
+      }
+    
       // Function to filter chart by date
       async function filterChartByDate(selectedDate) {
         try {
           if (!selectedDate || selectedDate === lastFilteredDate) {
             return; // Skip if no date is selected or the date hasn't changed
           }
-
+    
           lastFilteredDate = selectedDate; // Update the last filtered date
-
           console.log(`Filtering chart for date: ${selectedDate}`);
-
+    
           // Determine the date range
           const startOfDay = `${selectedDate}T00:00:00`;
           const endOfDay = `${selectedDate}T23:59:59`;
-
+    
           // Fetch data for the selected date
           const { data, error } = await supabase
             .from("sensor_data")
@@ -473,74 +469,64 @@
             .gte("created_at", startOfDay)
             .lte("created_at", endOfDay)
             .order("created_at", { ascending: true });
-
-          console.log("Fetched data:", data);
-
+    
           if (error) throw error;
-
+    
           if (!data || data.length === 0) {
             console.log("No data available for the selected date");
-            document.getElementById(
-              "chart-time-range"
-            ).textContent = `No data available for ${new Date(
-              selectedDate
-            ).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}`;
+            document.getElementById("chart-time-range").textContent = 
+              `No data available for ${new Date(selectedDate).toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}`;
             if (waterLevelChart) waterLevelChart.destroy();
+            currentChartData = [];
             return;
           }
-
+    
+          // Store the current data for real-time updates
+          currentChartData = data;
+          
           // Update the chart with filtered data
           updateChartWithData(data, selectedDate);
         } catch (err) {
           console.error("Error filtering chart:", err);
         }
       }
-
+    
       // Function to update chart with data
       function updateChartWithData(chartData, dateLabel) {
-        const labels = chartData.map((record) => {
-          const date = new Date(record.created_at);
-          return date.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-        });
-
+        const labels = chartData.map(record => formatTimestamp(record.created_at));
+    
         // Update time range display
         const firstDate = new Date(chartData[0].created_at);
         const lastDate = new Date(chartData[chartData.length - 1].created_at);
-        document.getElementById(
-          "chart-time-range"
-        ).textContent = `Data from ${firstDate.toLocaleTimeString()} to ${lastDate.toLocaleTimeString()} on ${new Date(
-          dateLabel
-        ).toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        })}`;
-
+        document.getElementById("chart-time-range").textContent = 
+          `Data from ${formatTimestamp(firstDate)} to ${formatTimestamp(lastDate)} on ${new Date(dateLabel).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+          })}`;
+    
         const ctx = document.getElementById("chart-line").getContext("2d");
-
+    
         // Destroy previous chart if exists
         if (waterLevelChart) {
           waterLevelChart.destroy();
         }
-
+    
         // Create gradient for chart lines
         const gradientStroke1 = ctx.createLinearGradient(0, 230, 0, 50);
         gradientStroke1.addColorStop(1, "rgba(94, 114, 228, 0.2)");
         gradientStroke1.addColorStop(0.2, "rgba(94, 114, 228, 0.0)");
         gradientStroke1.addColorStop(0, "rgba(94, 114, 228, 0)");
-
+    
         const gradientStroke2 = ctx.createLinearGradient(0, 230, 0, 50);
         gradientStroke2.addColorStop(1, "rgba(45, 206, 137, 0.2)");
         gradientStroke2.addColorStop(0.2, "rgba(45, 206, 137, 0.0)");
         gradientStroke2.addColorStop(0, "rgba(45, 206, 137, 0)");
-
+    
         // Create new chart
         waterLevelChart = new Chart(ctx, {
           type: "line",
@@ -555,7 +541,7 @@
                 borderColor: "#5e72e4",
                 backgroundColor: gradientStroke1,
                 fill: true,
-                data: chartData.map((d) => d.water_level_1),
+                data: chartData.map(d => d.water_level_1),
                 maxBarThickness: 6,
               },
               {
@@ -566,7 +552,7 @@
                 borderColor: "#2dce89",
                 backgroundColor: gradientStroke2,
                 fill: true,
-                data: chartData.map((d) => d.water_level_2),
+                data: chartData.map(d => d.water_level_2),
                 maxBarThickness: 6,
               },
             ],
@@ -581,10 +567,13 @@
               tooltip: {
                 callbacks: {
                   label: function (context) {
-                    return `${
-                      context.dataset.label
-                    }: ${context.parsed.y.toFixed(2)} m`;
+                    return `${context.dataset.label}: ${context.parsed.y.toFixed(2)} m`;
                   },
+                  title: function(context) {
+                    // Show full timestamp in tooltip
+                    const dataPoint = chartData[context[0].dataIndex];
+                    return new Date(dataPoint.created_at).toLocaleString();
+                  }
                 },
               },
             },
@@ -645,12 +634,12 @@
           },
         });
       }
-
+    
       // Initialize everything
       async function initializeDashboard() {
         try {
           await updateDashboardCards();
-
+    
           // Set the default date without triggering the onchange event
           const dateFilter = document.getElementById("date-filter");
           if (dateFilter) {
@@ -658,19 +647,19 @@
             dateFilter.value = today; // Set the default date
             await filterChartByDate(today); // Explicitly call the filter function
           }
-
+    
           setupRealtimeUpdates();
         } catch (err) {
           console.error("Initialization error:", err);
         }
       }
-
+    
       // Setup realtime updates
       function setupRealtimeUpdates() {
         if (realtimeChannel) {
           supabase.removeChannel(realtimeChannel);
         }
-
+    
         realtimeChannel = supabase
           .channel("sensor-updates")
           .on(
@@ -680,15 +669,33 @@
               schema: "public",
               table: "sensor_data",
             },
-            (payload) => {
-              console.log("New data inserted:", payload); // Debugging log
-              updateDashboardCards();
-              filterChartByDate(document.getElementById("date-filter").value);
+            async (payload) => {
+              console.log("New data inserted:", payload.new);
+              
+              // Update dashboard cards immediately
+              await updateDashboardCards();
+    
+              // Get current filter date
+              const selectedDate = document.getElementById("date-filter").value;
+              const newDataDate = new Date(payload.new.created_at).toISOString().split("T")[0];
+              
+              // Check if new data matches current filter date
+              if (selectedDate === newDataDate) {
+                // Add new data to current chart data
+                currentChartData.push({
+                  created_at: payload.new.created_at,
+                  water_level_1: payload.new.water_level_1,
+                  water_level_2: payload.new.water_level_2
+                });
+                
+                // Update the chart with the new data
+                updateChartWithData(currentChartData, selectedDate);
+              }
             }
           )
           .subscribe();
       }
-      //For Testing
+    
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
       if (win && document.querySelector("#sidenav-scrollbar")) {
