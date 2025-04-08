@@ -33,7 +33,6 @@
 
   <body class="g-sidenav-show bg-gray-100">
     <div class="min-height-300 bg-primary position-absolute w-100"></div>
-    <div class="min-height-300 position-absolute w-100" id="backdrop"></div>
     <aside
       class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4"
       id="sidenav-main"
@@ -276,10 +275,24 @@
       const filterBtn = document.getElementById("filter-btn");
       const resetBtn = document.getElementById("reset-btn");
 
-      // Format date to YYYY-MM-DD
+      // Format date to MM/DD/YYYY, hh:mm:ss AM/PM with -8 hours adjustment
       function formatDate(dateString) {
         const date = new Date(dateString);
-        return date.toLocaleString();
+
+        // Subtract 8 hours
+        date.setHours(date.getHours() - 8);
+
+        const options = {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true, // Enables 12-hour format
+        };
+
+        return date.toLocaleString("en-US", options);
       }
 
       // Fetch data from Supabase
@@ -577,110 +590,6 @@
           supabase.removeChannel(window.sensorDataChannel);
         }
       });
-
-      function updateBackgroundColor(waterLevel) {
-        const backdropElement = document.getElementById("backdrop");
-
-        if (!backdropElement) {
-          console.error("Backdrop element not found!");
-          return;
-        }
-
-        // Determine the flood risk level
-        let backgroundColor = "#28a745"; // Default to Low (Green)
-        if (waterLevel >= 3 && waterLevel < 4) {
-          backgroundColor = "#ffc107"; // High (Yellow)
-        } else if (waterLevel >= 4) {
-          backgroundColor = "#dc3545"; // Critical (Red)
-        }
-
-        console.log("Updating backdrop background color to:", backgroundColor);
-
-        // Update the background color
-        backdropElement.style.backgroundColor = backgroundColor;
-      }
-
-      async function updateDataLogsBackground() {
-        try {
-          const { data, error } = await supabase
-            .from("sensor_data")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(1);
-
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            const sensorData = data[0];
-            const waterLevel1 = sensorData.water_level_1 || 0;
-            const waterLevel2 = sensorData.water_level_2 || 0;
-
-            // Use the highest water level to determine the background color
-            updateBackgroundColor(Math.max(waterLevel1, waterLevel2));
-          }
-        } catch (err) {
-          console.error("Error updating data logs background:", err);
-        }
-      }
-
-      function updateBorderStyle(waterLevel) {
-        const dateFilterElement = document.getElementById("date-filter");
-
-
-        if (!dateFilterElement || !filterButtonElement || !filterIconElement) {
-          console.error("Date filter, filter button, or filter icon element not found!");
-          return;
-        }
-
-        // Determine the border color based on the flood risk level
-        let borderColor = "#28a745"; // Default to Low (Green)
-        if (waterLevel >= 3 && waterLevel < 4) {
-          borderColor = "#ffc107"; // High (Yellow)
-        } else if (waterLevel >= 4) {
-          borderColor = "#dc3545"; // Critical (Red)
-        }
-
-        console.log("Updating border color to:", borderColor);
-
-        // Update the border color dynamically for the input field
-        dateFilterElement.style.border = `1px solid ${borderColor}`;
-
-        // Update the border color dynamically for the filter button
-        filterButtonElement.style.border = `1px solid ${borderColor}`;
-        filterButtonElement.style.borderLeft = "none"; // Remove the left border to blend with the input field
-
-        // Update the color of the filter icon
-        filterIconElement.style.color = borderColor; // Change the icon color to match the border
-      }
-
-      // Call the function when the page loads
-      document.addEventListener("DOMContentLoaded", updateDataLogsBackground);
-
-      async function updateDataLogsBorder() {
-        try {
-          const { data, error } = await supabase
-            .from("sensor_data")
-            .select("*")
-            .order("created_at", { ascending: false })
-            .limit(1);
-
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            const sensorData = data[0];
-            const waterLevel1 = sensorData.water_level_1 || 0;
-            const waterLevel2 = sensorData.water_level_2 || 0;
-
-            // Use the highest water level to determine the border color
-            updateBorderStyle(Math.max(waterLevel1, waterLevel2));
-          }
-        } catch (err) {
-          console.error("Error updating data logs border:", err);
-        }
-      }
-
-      // Call the function when the page loads
-      document.addEventListener("DOMContentLoaded", updateDataLogsBorder);
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   </body>

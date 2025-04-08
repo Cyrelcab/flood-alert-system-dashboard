@@ -805,6 +805,9 @@
         // Add initial markers (gray by default)
         sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
         sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
+
+        // Set up real-time subscription for sensor status
+        setupSensorStatusSubscription();
       }
 
       // Function to create a marker with status-based color
@@ -829,34 +832,9 @@
         return marker;
       }
 
-      // Function to update markers based on sensor status
-      async function updateSensorMarkers() {
-        try {
-          const { data, error } = await supabase
-            .from("sensor_status")
-            .select("*")
-            .limit(1);
-
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            const status = data[0];
-            console.log("Sensor status:", status);
-
-            // Update sensor 1 marker icon
-            updateMarker(sensor1Marker, "Sensor 1", status.sensor1);
-
-            // Update sensor 2 marker icon
-            updateMarker(sensor2Marker, "Sensor 2", status.sensor2);
-          }
-        } catch (err) {
-          console.error("Error updating markers:", err);
-        }
-      }
-
       // Function to update a specific marker
       function updateMarker(marker, name, isActive) {
-        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+        const pinColor = isActive ? "#28a745" : "#dc3545";
 
         const newIcon = L.divIcon({
           html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
@@ -872,23 +850,51 @@
         );
       }
 
-      // Set up real-time updates for sensor status
-      function setupSensorStatusUpdates() {
-        const statusChannel = supabase
-          .channel("sensor-status-updates")
+      // Function to setup real-time subscription for sensor status
+      function setupSensorStatusSubscription() {
+        const channel = supabase
+          .channel('sensor-status')
           .on(
-            "postgres_changes",
+            'postgres_changes',
             {
-              event: "*",
-              schema: "public",
-              table: "sensor_status",
+              event: '*',
+              schema: 'public',
+              table: 'sensor_status'
             },
-            () => {
-              updateSensorMarkers(); // Update markers whenever the sensor status changes
+            (payload) => {
+              if (payload.new) {
+                // Update markers based on real-time status
+                updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
+                updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
+              }
             }
           )
           .subscribe();
       }
+
+      // Initial status check
+      async function checkInitialStatus() {
+        try {
+          const { data, error } = await supabase
+            .from('sensor_status')
+            .select('*')
+            .limit(1);
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            updateMarker(sensor1Marker, "Sensor 1", data[0].sensor1);
+            updateMarker(sensor2Marker, "Sensor 2", data[0].sensor2);
+          }
+        } catch (err) {
+          console.error('Error checking initial status:', err);
+        }
+      }
+
+      // When document is ready, check initial status
+      document.addEventListener('DOMContentLoaded', () => {
+        checkInitialStatus();
+      });
     </script>
   </body>
 </html>
