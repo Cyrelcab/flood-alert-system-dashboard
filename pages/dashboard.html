@@ -315,7 +315,6 @@
       let supabase = null;
       let lastFilteredDate = null;
       let currentChartData = []; // Store current chart data for real-time updates
-      let lastWaterLevels = { sensor1: 0, sensor2: 0 }; // Store the last water levels for comparison
 
       document.addEventListener("DOMContentLoaded", function () {
         // Initialize Supabase client
@@ -387,33 +386,6 @@
             // Determine thresholds for water levels
             const waterLevel1 = sensorData.water_level_1 || 0;
             const waterLevel2 = sensorData.water_level_2 || 0;
-
-            // Define thresholds
-            const HIGH_THRESHOLD = 3; // Example: High water level threshold
-            const CRITICAL_THRESHOLD = 4; // Example: Critical water level threshold
-
-            // Check if water levels have increased beyond thresholds
-            if (
-              (waterLevel1 > lastWaterLevels.sensor1 &&
-                waterLevel1 >= HIGH_THRESHOLD) ||
-              (waterLevel2 > lastWaterLevels.sensor2 &&
-                waterLevel2 >= HIGH_THRESHOLD)
-            ) {
-              sendSMS("Alert: Water levels have increased to HIGH levels!");
-            }
-
-            if (
-              (waterLevel1 > lastWaterLevels.sensor1 &&
-                waterLevel1 >= CRITICAL_THRESHOLD) ||
-              (waterLevel2 > lastWaterLevels.sensor2 &&
-                waterLevel2 >= CRITICAL_THRESHOLD)
-            ) {
-              sendSMS("Alert: Water levels have increased to CRITICAL levels!");
-            }
-
-            // Update the last water levels for comparison
-            lastWaterLevels.sensor1 = waterLevel1;
-            lastWaterLevels.sensor2 = waterLevel2;
 
             // Update the flood risk gauge
             updateFloodRiskGauge(Math.max(waterLevel1, waterLevel2)); // Use the highest water level for the gauge
@@ -758,31 +730,6 @@
       }
       }
     </script>
-    <script type="module">
-      import { sendSMS } from "../sendSMS.js";
-    </script>
-    <script>
-      async function sendSMS(message) {
-        try {
-          const response = await fetch("http://localhost:3000/send-sms", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ body: message }),
-          });
-
-          const result = await response.json();
-          if (result.success) {
-            console.log("SMS sent successfully");
-          } else {
-            console.error("Failed to send SMS:", result.error);
-          }
-        } catch (error) {
-          console.error("Error sending SMS:", error);
-        }
-      }
-    </script>
 
     <!-- Script for the map -->
     <script>
@@ -793,107 +740,124 @@
 
       // Function to initialize the map
       function initializeMap() {
-        // Initialize the map
-        map = L.map("map").setView([8.938112, 125.591943], 18);
+      // Initialize the map
+      map = L.map("map").setView([8.938112, 125.591943], 18);
 
-        // Add OpenStreetMap tiles
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          attribution: "© OpenStreetMap contributors",
-        }).addTo(map);
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://api.maptiler.com/maps/satellite/{z}/{x}/{y}@2x.jpg?key=MelpifBWqYE9JvjRYide', {
+        tileSize: 512,
+        zoomOffset: -1,
+        minZoom: 15, // Set minimum zoom level
+        maxZoom: 22, // Set maximum zoom level
+        zoom: 18, // Set initial zoom level
+        attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+      }).addTo(map);
 
-        // Add initial markers (gray by default)
-        sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
-        sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
+      // Add initial markers (gray by default)
+      sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
+      sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
 
-        // Set up real-time subscription for sensor status
-        setupSensorStatusSubscription();
+      // Force popups to stay open
+      sensor1Marker.openPopup();
+      sensor2Marker.openPopup();
+
+      // Set up real-time subscription for sensor status
+      setupSensorStatusSubscription();
       }
 
       // Function to create a marker with status-based color
       function createMarker(location, name, isActive) {
-        const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
+      const pinColor = isActive ? "#28a745" : "#dc3545"; // Green for active, red for inactive
 
-        const customIcon = L.divIcon({
-          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
-          className: "custom-pin",
-          iconSize: [32, 32],
-          iconAnchor: [16, 32],
-          popupAnchor: [0, -32],
-        });
+      const customIcon = L.divIcon({
+        html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+        className: "custom-pin",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+      });
 
-        const marker = L.marker(location, {
-          icon: customIcon,
-        }).addTo(map);
+      const marker = L.marker(location, {
+        icon: customIcon,
+      }).addTo(map);
 
-        marker.bindPopup(
-          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
-        );
-        return marker;
+      const popup = L.popup({
+        closeButton: false,
+        autoClose: false,
+        closeOnClick: false
+      }).setContent(`<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`);
+      
+      marker.bindPopup(popup).openPopup();
+      return marker;
       }
 
       // Function to update a specific marker
       function updateMarker(marker, name, isActive) {
-        const pinColor = isActive ? "#28a745" : "#dc3545";
+      const pinColor = isActive ? "#28a745" : "#dc3545";
 
-        const newIcon = L.divIcon({
-          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
-          className: "custom-pin",
-          iconSize: [32, 32],
-          iconAnchor: [16, 32],
-          popupAnchor: [0, -32],
-        });
+      const newIcon = L.divIcon({
+        html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+        className: "custom-pin",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32],
+      });
 
-        marker.setIcon(newIcon);
-        marker.setPopupContent(
-          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
-        );
+      marker.setIcon(newIcon);
+      
+      const popup = L.popup({
+        closeButton: false,
+        autoClose: false,
+        closeOnClick: false
+      }).setContent(`<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`);
+      
+      marker.bindPopup(popup).openPopup();
       }
 
       // Function to setup real-time subscription for sensor status
       function setupSensorStatusSubscription() {
-        const channel = supabase
-          .channel('sensor-status')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'sensor_status'
-            },
-            (payload) => {
-              if (payload.new) {
-                // Update markers based on real-time status
-                updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
-                updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
-              }
-            }
-          )
-          .subscribe();
+      const channel = supabase
+        .channel('sensor-status')
+        .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sensor_status'
+        },
+        (payload) => {
+          if (payload.new) {
+          // Update markers based on real-time status
+          updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
+          updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
+          }
+        }
+        )
+        .subscribe();
       }
 
       // Initial status check
       async function checkInitialStatus() {
-        try {
-          const { data, error } = await supabase
-            .from('sensor_status')
-            .select('*')
-            .limit(1);
+      try {
+        const { data, error } = await supabase
+        .from('sensor_status')
+        .select('*')
+        .limit(1);
 
-          if (error) throw error;
+        if (error) throw error;
 
-          if (data && data.length > 0) {
-            updateMarker(sensor1Marker, "Sensor 1", data[0].sensor1);
-            updateMarker(sensor2Marker, "Sensor 2", data[0].sensor2);
-          }
-        } catch (err) {
-          console.error('Error checking initial status:', err);
+        if (data && data.length > 0) {
+        updateMarker(sensor1Marker, "Sensor 1", data[0].sensor1);
+        updateMarker(sensor2Marker, "Sensor 2", data[0].sensor2);
         }
+      } catch (err) {
+        console.error('Error checking initial status:', err);
+      }
       }
 
       // When document is ready, check initial status
       document.addEventListener('DOMContentLoaded', () => {
-        checkInitialStatus();
+      checkInitialStatus();
       });
     </script>
   </body>
