@@ -1,9 +1,0 @@
-{
-    "rewrites": [
-      { "source": "/", "destination": "../pages/dashboard.html"},
-      { "source": "/data-logs", "destination": "../pages/data-logs.html"}
-    ],
-    "cleanUrls": true,
-    "trailingSlash": false
-  }
-  
