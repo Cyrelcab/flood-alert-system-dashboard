@@ -325,24 +325,10 @@
 
         // Initialize everything
         initializeDashboard();
-
         initializeMap();
 
-        // Initial marker update
-        updateSensorMarkers();
-
         // Set up real-time updates
-        setupSensorStatusUpdates();
         setupRealtimeUpdates();
-
-        // Set up the date filter input
-        const dateFilter = document.getElementById("date-filter");
-        if (dateFilter) {
-          dateFilter.value = new Date().toISOString().split("T")[0]; // Set default to today
-          dateFilter.addEventListener("change", function () {
-            filterChartByDate(this.value);
-          });
-        }
       });
 
       // Function to update dashboard cards
