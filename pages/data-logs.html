@@ -181,7 +181,7 @@
                         <th
                           class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
                         >
-                          Water Level (Sensor 1)
+                        Distance to Water Surface (Sensor 1)
                         </th>
                         <th
                           class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
@@ -196,7 +196,7 @@
                         <th
                           class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
                         >
-                          Water Level (Sensor 2)
+                        Distance to Water Surface (Sensor 2)
                         </th>
                         <th
                           class="text-center text-uppercase text-secondary text-xxs font-weight-bolder opacity-7"
@@ -390,7 +390,7 @@
           <td class="text-center text-sm">${formatDate(row.created_at)}</td>
           <td class="text-center text-sm">${
             row.water_level_1?.toFixed(2) || "0.00"
-          } m</td>
+          } cm</td>
           <td class="text-center text-sm">${
             row.humidity_1?.toFixed(2) || "0.00"
           }%</td>
@@ -399,7 +399,7 @@
           } L/s</td>
           <td class="text-center text-sm">${
             row.water_level_2?.toFixed(2) || "0.00"
-          } m</td>
+          } cm</td>
           <td class="text-center text-sm">${
             row.humidity_2?.toFixed(2) || "0.00"
           }%</td>
@@ -554,16 +554,16 @@
         // Prepare data for Excel
         const excelData = filteredData.map((row) => ({
           "Date & Time": formatDate(row.created_at),
-          "Water Level (Sensor 1)": `${
+          "Distance to Water Surface (Sensor 1)": `${
             row.water_level_1?.toFixed(2) || "0.00"
-          } m`,
+          } cm`,
           "Humidity (Sensor 1)": `${row.humidity_1?.toFixed(2) || "0.00"}%`,
           "Flow Rate (Sensor 1)": `${
             row.flow_rate_1?.toFixed(2) || "0.00"
           } L/s`,
-          "Water Level (Sensor 2)": `${
+          "Distance to Water Surface (Sensor 2)": `${
             row.water_level_2?.toFixed(2) || "0.00"
-          } m`,
+          } cm`,
           "Humidity (Sensor 2)": `${row.humidity_2?.toFixed(2) || "0.00"}%`,
           "Flow Rate (Sensor 2)": `${
             row.flow_rate_2?.toFixed(2) || "0.00"

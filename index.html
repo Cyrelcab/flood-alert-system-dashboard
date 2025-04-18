@@ -189,13 +189,13 @@
               </div>
             </div>
           </div>
-          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+            <div class="col-xl-4 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
               <div class="card-body p-3">
                 <div class="row">
                   <div class="col-8">
                     <div class="numbers">
-                      <p class="text-sm mb-0 text-uppercase font-weight-bold text-nowrap">
+                      <p class="text-sm mb-0 text-uppercase font-weight-bold ">
                         Distance to Water Surface (cm)
                       </p>
                       <h5 class="font-weight-bolder mt-3">
@@ -333,6 +333,7 @@
 
         // Set up real-time updates
         setupSensorStatusUpdates();
+        setupRealtimeUpdates();
 
         // Set up the date filter input
         const dateFilter = document.getElementById("date-filter");
@@ -378,10 +379,10 @@
             // Update Water Level card
             document.getElementById("water-level-sensor-1").textContent = `${
               sensorData.water_level_1 || 0
-            } m`;
+            } cm`;
             document.getElementById("water-level-sensor-2").textContent = `${
               sensorData.water_level_2 || 0
-            } m`;
+            } cm`;
 
             // Determine thresholds for water levels
             const waterLevel1 = sensorData.water_level_1 || 0;
@@ -468,6 +469,11 @@
           formatTimestamp(record.created_at)
         ); // Use updated formatTimestamp
 
+        // Prepend a starting point of 0 to the data and labels
+        labels.unshift("Start");
+        const sensor1Data = [0, ...chartData.map((d) => d.water_level_1)];
+        const sensor2Data = [0, ...chartData.map((d) => d.water_level_2)];
+
         const ctx = document.getElementById("chart-line").getContext("2d");
 
         // Destroy previous chart if exists
@@ -487,8 +493,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#5e72e4",
-                fill: true,
-                data: chartData.map((d) => d.water_level_1),
+                fill: false,
+                data: sensor1Data, // Use modified data with starting point
               },
               {
                 label: "Sensor 2",
@@ -496,8 +502,8 @@
                 borderWidth: 3,
                 pointRadius: 2,
                 borderColor: "#2dce89",
-                fill: true,
-                data: chartData.map((d) => d.water_level_2),
+                fill: false,
+                data: sensor2Data, // Use modified data with starting point
               },
             ],
           },
@@ -509,13 +515,15 @@
                 callbacks: {
                   title: function (context) {
                     // Display the timestamp in the tooltip with added 16 hours
-                    const dataPoint = chartData[context[0].dataIndex];
-                    return formatTimestamp(dataPoint.created_at);
+                    const dataPoint = chartData[context[0].dataIndex - 1];
+                    return context[0].dataIndex === 0
+                      ? "Start"
+                      : formatTimestamp(dataPoint.created_at);
                   },
                   label: function (context) {
                     return `${
                       context.dataset.label
-                    }: ${context.parsed.y.toFixed(2)} m`;
+                    }: ${context.parsed.y.toFixed(2)} cm`;
                   },
                 },
               },
@@ -531,6 +539,12 @@
                 title: {
                   display: true,
                   text: "Water Level (m)",
+                },
+                reverse: true, // Invert the y-axis
+                ticks: {
+                  callback: function (value) {
+                    return value + " cm"; // Add unit to y-axis labels
+                  },
                 },
               },
             },
@@ -557,12 +571,14 @@
         }
       }
 
-      // Setup realtime updates
+      // Setup real-time updates for sensor data and sensor status
       function setupRealtimeUpdates() {
+        // Remove existing channels if they exist
         if (realtimeChannel) {
           supabase.removeChannel(realtimeChannel);
         }
-
+      
+        // Real-time updates for sensor data
         realtimeChannel = supabase
           .channel("sensor-updates")
           .on(
@@ -573,18 +589,18 @@
               table: "sensor_data",
             },
             async (payload) => {
-              console.log("New data inserted:", payload.new);
-
+              console.log("New sensor data inserted:", payload.new);
+      
               // Update dashboard cards immediately
               await updateDashboardCards();
-
+      
               // Get current filter date
               const selectedDate = document.getElementById("date-filter").value;
               const newDataDate = new Date(payload.new.created_at)
                 .toISOString()
                 .split("T")[0];
-
-              // Check if new data matches current filter date
+      
+              // Check if new data matches the current filter date
               if (selectedDate === newDataDate) {
                 // Add new data to current chart data
                 currentChartData.push({
@@ -592,15 +608,35 @@
                   water_level_1: payload.new.water_level_1,
                   water_level_2: payload.new.water_level_2,
                 });
-
+      
                 // Update the chart with the new data
                 updateChartWithData(currentChartData, selectedDate);
               }
             }
           )
           .subscribe();
+      
+        // Real-time updates for sensor status
+        supabase
+          .channel("sensor-status-updates")
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "sensor_status",
+            },
+            (payload) => {
+              console.log("Sensor status updated:", payload.new);
+      
+              // Update markers based on real-time status
+              updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
+              updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
+            }
+          )
+          .subscribe();
       }
-
+      
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
       if (win && document.querySelector("#sidenav-scrollbar")) {
@@ -701,33 +737,47 @@
 
       // Function to update the gauge dynamically
       function updateFloodRiskGauge(waterLevel) {
-      const maxWaterLevel = 4; // Maximum water level for the gauge
-      const needleValue = Math.min((waterLevel / maxWaterLevel) * 100, 100); // Calculate needle position (0-100%)
+        const maxWaterLevel = 4; // Maximum water level for the gauge
+        let needleValue;
 
-      console.log("Updating needle value to:", needleValue); // Debugging log
+        // Adjust needle value based on water level
+        if (waterLevel < 0) {
+          // Negative water levels point to High or Critical
+          needleValue = Math.min((Math.abs(waterLevel) / maxWaterLevel) * 100, 100);
+          needleValue = 66.66 + (needleValue / 3); // Map to High or Critical range
+        } else {
+          // Positive water levels point to Low or High
+          needleValue = Math.min((waterLevel / maxWaterLevel) * 100, 100);
+          needleValue = needleValue / 3; // Map to Low or High range
+        }
 
-      // Update background color based on needle value
-      const backgroundElement = document.getElementById("flood-risk-gauge-color");
-      if (needleValue <= 33.33) {
-        backgroundElement.style.backgroundImage = "linear-gradient(to top right, #1a572b, #28a745)"; // Low - Dark to Light Green
-      } else if (needleValue <= 66.66) {
-        backgroundElement.style.backgroundImage = "linear-gradient(to top right, #997004, #ffc107)"; // High - Dark to Light Yellow
-      } else {
-        backgroundElement.style.backgroundImage = "linear-gradient(to top right, #831f2b, #dc3545)"; // Critical - Dark to Light Red
-      }
+        console.log("Updating needle value to:", needleValue); // Debugging log
 
-      // Check if the gaugeNeedle plugin exists
-      if (floodRiskGauge.options.plugins.gaugeNeedle) {
-        // Update the needle value
-        floodRiskGauge.options.plugins.gaugeNeedle.needleValue = needleValue;
+        // Update background color based on needle value
+        const backgroundElement = document.getElementById("flood-risk-gauge-color");
+        if (needleValue <= 33.33) {
+          backgroundElement.style.backgroundImage =
+            "linear-gradient(to top right, #1a572b, #28a745)"; // Low - Dark to Light Green
+        } else if (needleValue <= 66.66) {
+          backgroundElement.style.backgroundImage =
+            "linear-gradient(to top right, #997004, #ffc107)"; // High - Dark to Light Yellow
+        } else {
+          backgroundElement.style.backgroundImage =
+            "linear-gradient(to top right, #831f2b, #dc3545)"; // Critical - Dark to Light Red
+        }
 
-        // Update the chart
-        floodRiskGauge.update();
-      } else {
-        console.error(
-        "gaugeNeedle plugin is not defined in the chart options."
-        );
-      }
+        // Check if the gaugeNeedle plugin exists
+        if (floodRiskGauge.options.plugins.gaugeNeedle) {
+          // Update the needle value
+          floodRiskGauge.options.plugins.gaugeNeedle.needleValue = needleValue;
+
+          // Update the chart
+          floodRiskGauge.update();
+        } else {
+          console.error(
+            "gaugeNeedle plugin is not defined in the chart options."
+          );
+        }
       }
     </script>
 
