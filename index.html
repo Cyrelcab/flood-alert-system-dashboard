@@ -11,7 +11,7 @@
       sizes="76x76"
       href="../assets/img/apple-icon.png"
     />
-    <link rel="icon" type="image/png" href="../assets/img/logo.png">
+    <link rel="icon" type="image/png" href="../assets/img/logo.png" />
     <title>Lemon - Flood Alert System</title>
     <!--     Fonts and icons     -->
     <link
@@ -33,7 +33,10 @@
   </head>
 
   <body class="g-sidenav-show bg-gray-100">
-    <div class="min-height-300 position-absolute w-100" id="flood-risk-gauge-color"></div>
+    <div
+      class="min-height-300 position-absolute w-100"
+      id="flood-risk-gauge-color"
+    ></div>
     <aside
       class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4"
       id="sidenav-main"
@@ -44,8 +47,17 @@
           aria-hidden="true"
           id="iconSidenav"
         ></i>
-        <a class="navbar-brand m-0 d-flex align-items-center justify-content-center" href="./index.html">
-          <img src="./assets/img/logo.png" alt="" width="30" height="30" class="me-2">
+        <a
+          class="navbar-brand m-0 d-flex align-items-center justify-content-center"
+          href="./index.html"
+        >
+          <img
+            src="./assets/img/logo.png"
+            alt=""
+            width="30"
+            height="30"
+            class="me-2"
+          />
           <span class="font-weight-bold">Lemon - Flood Alert System</span>
         </a>
       </div>
@@ -189,13 +201,15 @@
               </div>
             </div>
           </div>
-            <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
+          <div class="col-xl-3 col-sm-6 mb-xl-0 mb-4">
             <div class="card">
               <div class="card-body p-3">
                 <div class="row">
                   <div class="col-8">
                     <div class="numbers">
-                      <p class="text-sm mb-0 text-uppercase font-weight-bold text-nowrap">
+                      <p
+                        class="text-sm mb-0 text-uppercase font-weight-bold text-nowrap"
+                      >
                         Distance to Water Surface (cm)
                       </p>
                       <h5 class="font-weight-bolder mt-3">
@@ -322,6 +336,12 @@
         const SUPABASE_KEY =
           "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzaWlibGFsb2J6d3R6Y3h1emNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4NzM5OTcsImV4cCI6MjA1NzQ0OTk5N30.6s_K1YnMeHu0rimrfDMG7KFQ9Q-KoQ72W6Tzciz0f1w";
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Set the default date in the date filter
+        const dateFilter = document.getElementById("date-filter");
+        if (dateFilter) {
+          dateFilter.value = getCurrentDate(); // Use the function from clock.js
+        }
 
         // Initialize everything
         initializeDashboard();
@@ -546,7 +566,7 @@
           // Set the default date without triggering the onchange event
           const dateFilter = document.getElementById("date-filter");
           if (dateFilter) {
-            const today = new Date().toISOString().split("T")[0];
+            const today = getCurrentDate(); // Use the function from clock.js
             dateFilter.value = today; // Set the default date
             await filterChartByDate(today); // Explicitly call the filter function
           }
@@ -563,7 +583,7 @@
         if (realtimeChannel) {
           supabase.removeChannel(realtimeChannel);
         }
-      
+
         // Real-time updates for sensor data
         realtimeChannel = supabase
           .channel("sensor-updates")
@@ -576,16 +596,16 @@
             },
             async (payload) => {
               console.log("New sensor data inserted:", payload.new);
-      
+
               // Update dashboard cards immediately
               await updateDashboardCards();
-      
+
               // Get current filter date
               const selectedDate = document.getElementById("date-filter").value;
               const newDataDate = new Date(payload.new.created_at)
                 .toISOString()
                 .split("T")[0];
-      
+
               // Check if new data matches the current filter date
               if (selectedDate === newDataDate) {
                 // Add new data to current chart data
@@ -594,14 +614,14 @@
                   water_level_1: payload.new.water_level_1,
                   water_level_2: payload.new.water_level_2,
                 });
-      
+
                 // Update the chart with the new data
                 updateChartWithData(currentChartData, selectedDate);
               }
             }
           )
           .subscribe();
-      
+
         // Real-time updates for sensor status
         supabase
           .channel("sensor-status-updates")
@@ -614,7 +634,7 @@
             },
             (payload) => {
               console.log("Sensor status updated:", payload.new);
-      
+
               // Update markers based on real-time status
               updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
               updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
@@ -622,7 +642,7 @@
           )
           .subscribe();
       }
-      
+
       // Sidebar scrollbar initialization
       var win = navigator.platform.indexOf("Win") > -1;
       if (win && document.querySelector("#sidenav-scrollbar")) {
@@ -635,44 +655,44 @@
     <script>
       // Custom plugin to draw the needle
       const gaugeNeedlePlugin = {
-      id: "gaugeNeedle",
-      afterDatasetDraw(chart, args, options) {
-        // Check if the chart is the Flood Risk Gauge
-        if (chart.canvas.id !== "flood-risk-gauge") {
-        return; // Skip execution for other charts
-        }
+        id: "gaugeNeedle",
+        afterDatasetDraw(chart, args, options) {
+          // Check if the chart is the Flood Risk Gauge
+          if (chart.canvas.id !== "flood-risk-gauge") {
+            return; // Skip execution for other charts
+          }
 
-        const { ctx, chartArea } = chart;
-        const needleValue = options.needleValue || 0; // Default to 0 if undefined
-        const dataTotal = chart.data.datasets[0].data.reduce(
-        (a, b) => a + b,
-        0
-        );
-        const angle = Math.PI + (1 / dataTotal) * needleValue * Math.PI;
+          const { ctx, chartArea } = chart;
+          const needleValue = options.needleValue || 0; // Default to 0 if undefined
+          const dataTotal = chart.data.datasets[0].data.reduce(
+            (a, b) => a + b,
+            0
+          );
+          const angle = Math.PI + (1 / dataTotal) * needleValue * Math.PI;
 
-        const needleRadius = (chartArea.width / 2) * 0.65; // Adjust the needle length
-        const needleCenterX = (chartArea.left + chartArea.right) / 2;
-        const needleCenterY = chartArea.bottom;
+          const needleRadius = (chartArea.width / 2) * 0.65; // Adjust the needle length
+          const needleCenterX = (chartArea.left + chartArea.right) / 2;
+          const needleCenterY = chartArea.bottom;
 
-        // Draw the needle
-        ctx.save();
-        ctx.translate(needleCenterX, needleCenterY);
-        ctx.rotate(angle);
-        ctx.beginPath();
-        ctx.moveTo(0, -5);
-        ctx.lineTo(needleRadius, 0);
-        ctx.lineTo(0, 5);
-        ctx.fillStyle = "black";
-        ctx.fill();
-        ctx.restore();
+          // Draw the needle
+          ctx.save();
+          ctx.translate(needleCenterX, needleCenterY);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, -5);
+          ctx.lineTo(needleRadius, 0);
+          ctx.lineTo(0, 5);
+          ctx.fillStyle = "black";
+          ctx.fill();
+          ctx.restore();
 
-        // Draw the needle center
-        ctx.beginPath();
-        ctx.arc(needleCenterX, needleCenterY, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "black";
-        ctx.fill();
-        ctx.restore();
-      },
+          // Draw the needle center
+          ctx.beginPath();
+          ctx.arc(needleCenterX, needleCenterY, 10, 0, Math.PI * 2);
+          ctx.fillStyle = "black";
+          ctx.fill();
+          ctx.restore();
+        },
       };
 
       // Register the plugin globally
@@ -682,43 +702,43 @@
       const ctx = document.getElementById("flood-risk-gauge").getContext("2d");
 
       const floodRiskGauge = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["Low", "High", "Critical"], // Labels for the legend
-        datasets: [
-        {
-          data: [33.33, 33.33, 33.33], // Equal segments for each risk level
-          backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
-          borderWidth: 0,
+        type: "doughnut",
+        data: {
+          labels: ["Low", "High", "Critical"], // Labels for the legend
+          datasets: [
+            {
+              data: [33.33, 33.33, 33.33], // Equal segments for each risk level
+              backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
+              borderWidth: 0,
+            },
+          ],
         },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "70%", // Creates the gauge effect
-        rotation: -90, // Start from the bottom
-        circumference: 180, // Half-circle
-        plugins: {
-        legend: {
-          display: true, // Enable the legend
-          position: "bottom", // Position the legend below the chart
-          labels: {
-          font: {
-            size: 14, // Font size for legend labels
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "70%", // Creates the gauge effect
+          rotation: -90, // Start from the bottom
+          circumference: 180, // Half-circle
+          plugins: {
+            legend: {
+              display: true, // Enable the legend
+              position: "bottom", // Position the legend below the chart
+              labels: {
+                font: {
+                  size: 14, // Font size for legend labels
+                },
+                color: "#333", // Font color for legend labels
+                padding: 23, // Padding between legend items
+              },
+            },
+            tooltip: {
+              enabled: false, // Disable tooltips
+            },
+            gaugeNeedle: {
+              needleValue: 0, // Initial needle value
+            },
           },
-          color: "#333", // Font color for legend labels
-          padding: 23, // Padding between legend items
-          },
         },
-        tooltip: {
-          enabled: false, // Disable tooltips
-        },
-        gaugeNeedle: {
-          needleValue: 0, // Initial needle value
-        },
-        },
-      },
       });
 
       // Function to update the gauge dynamically
@@ -729,8 +749,11 @@
         // Adjust needle value based on water level
         if (waterLevel < 0) {
           // Negative water levels point to High or Critical
-          needleValue = Math.min((Math.abs(waterLevel) / maxWaterLevel) * 100, 100);
-          needleValue = 66.66 + (needleValue / 3); // Map to High or Critical range
+          needleValue = Math.min(
+            (Math.abs(waterLevel) / maxWaterLevel) * 100,
+            100
+          );
+          needleValue = 66.66 + needleValue / 3; // Map to High or Critical range
         } else {
           // Positive water levels point to Low or High
           needleValue = Math.min((waterLevel / maxWaterLevel) * 100, 100);
@@ -740,7 +763,9 @@
         console.log("Updating needle value to:", needleValue); // Debugging log
 
         // Update background color based on needle value
-        const backgroundElement = document.getElementById("flood-risk-gauge-color");
+        const backgroundElement = document.getElementById(
+          "flood-risk-gauge-color"
+        );
         if (needleValue <= 33.33) {
           backgroundElement.style.backgroundImage =
             "linear-gradient(to top right, #1a572b, #28a745)"; // Low - Dark to Light Green
@@ -776,124 +801,132 @@
 
       // Function to initialize the map
       function initializeMap() {
-      // Initialize the map
-      map = L.map("map").setView([8.938112, 125.591943], 18);
+        // Initialize the map
+        map = L.map("map").setView([8.938112, 125.591943], 18);
 
-      // Add OpenStreetMap tiles
-      L.tileLayer('https://api.maptiler.com/maps/satellite/{z}/{x}/{y}@2x.jpg?key=MelpifBWqYE9JvjRYide', {
-        tileSize: 512,
-        zoomOffset: -1,
-        minZoom: 15, // Set minimum zoom level
-        maxZoom: 22, // Set maximum zoom level
-        zoom: 18, // Set initial zoom level
-        attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
-      }).addTo(map);
+        // Add OpenStreetMap tiles
+        L.tileLayer(
+          "https://api.maptiler.com/maps/satellite/{z}/{x}/{y}@2x.jpg?key=MelpifBWqYE9JvjRYide",
+          {
+            tileSize: 512,
+            zoomOffset: -1,
+            minZoom: 15, // Set minimum zoom level
+            maxZoom: 22, // Set maximum zoom level
+            zoom: 18, // Set initial zoom level
+            attribution:
+              '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+          }
+        ).addTo(map);
 
-      // Add initial markers (gray by default)
-      sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
-      sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
+        // Add initial markers (gray by default)
+        sensor1Marker = createMarker([8.937794, 125.592672], "Sensor 1", false);
+        sensor2Marker = createMarker([8.93901, 125.591596], "Sensor 2", false);
 
-      // Force popups to stay open
-      sensor1Marker.openPopup();
-      sensor2Marker.openPopup();
+        // Force popups to stay open
+        sensor1Marker.openPopup();
+        sensor2Marker.openPopup();
 
-      // Set up real-time subscription for sensor status
-      setupSensorStatusSubscription();
+        // Set up real-time subscription for sensor status
+        setupSensorStatusSubscription();
       }
 
       // Function to create a marker with status-based color
       function createMarker(location, name, isActive) {
-      const pinColor = isActive ? "#32CD32" : "#dc3545"; // Light green for active, red for inactive
+        const pinColor = isActive ? "#32CD32" : "#dc3545"; // Light green for active, red for inactive
 
-      const customIcon = L.divIcon({
-        html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
-        className: "custom-pin",
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
-      });
+        const customIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
 
-      const marker = L.marker(location, {
-        icon: customIcon,
-      }).addTo(map);
+        const marker = L.marker(location, {
+          icon: customIcon,
+        }).addTo(map);
 
-      const popup = L.popup({
-        closeButton: false,
-        autoClose: false,
-        closeOnClick: false
-      }).setContent(`<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`);
-      
-      marker.bindPopup(popup).openPopup();
-      return marker;
+        const popup = L.popup({
+          closeButton: false,
+          autoClose: false,
+          closeOnClick: false,
+        }).setContent(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+
+        marker.bindPopup(popup).openPopup();
+        return marker;
       }
 
       // Function to update a specific marker
       function updateMarker(marker, name, isActive) {
-      const pinColor = isActive ? "#32CD32" : "#dc3545";
+        const pinColor = isActive ? "#32CD32" : "#dc3545";
 
-      const newIcon = L.divIcon({
-        html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
-        className: "custom-pin",
-        iconSize: [32, 32],
-        iconAnchor: [16, 32],
-        popupAnchor: [0, -32],
-      });
+        const newIcon = L.divIcon({
+          html: `<i class="fas fa-map-marker-alt" style="color: ${pinColor}; font-size: 32px;"></i>`,
+          className: "custom-pin",
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+          popupAnchor: [0, -32],
+        });
 
-      marker.setIcon(newIcon);
-      
-      const popup = L.popup({
-        closeButton: false,
-        autoClose: false,
-        closeOnClick: false
-      }).setContent(`<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`);
-      
-      marker.bindPopup(popup).openPopup();
+        marker.setIcon(newIcon);
+
+        const popup = L.popup({
+          closeButton: false,
+          autoClose: false,
+          closeOnClick: false,
+        }).setContent(
+          `<b>${name}</b><br>Status: ${isActive ? "Active" : "Inactive"}`
+        );
+
+        marker.bindPopup(popup).openPopup();
       }
 
       // Function to setup real-time subscription for sensor status
       function setupSensorStatusSubscription() {
-      const channel = supabase
-        .channel('sensor-status')
-        .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sensor_status'
-        },
-        (payload) => {
-          if (payload.new) {
-          // Update markers based on real-time status
-          updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
-          updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
-          }
-        }
-        )
-        .subscribe();
+        const channel = supabase
+          .channel("sensor-status")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "sensor_status",
+            },
+            (payload) => {
+              if (payload.new) {
+                // Update markers based on real-time status
+                updateMarker(sensor1Marker, "Sensor 1", payload.new.sensor1);
+                updateMarker(sensor2Marker, "Sensor 2", payload.new.sensor2);
+              }
+            }
+          )
+          .subscribe();
       }
 
       // Initial status check
       async function checkInitialStatus() {
-      try {
-        const { data, error } = await supabase
-        .from('sensor_status')
-        .select('*')
-        .limit(1);
+        try {
+          const { data, error } = await supabase
+            .from("sensor_status")
+            .select("*")
+            .limit(1);
 
-        if (error) throw error;
+          if (error) throw error;
 
-        if (data && data.length > 0) {
-        updateMarker(sensor1Marker, "Sensor 1", data[0].sensor1);
-        updateMarker(sensor2Marker, "Sensor 2", data[0].sensor2);
+          if (data && data.length > 0) {
+            updateMarker(sensor1Marker, "Sensor 1", data[0].sensor1);
+            updateMarker(sensor2Marker, "Sensor 2", data[0].sensor2);
+          }
+        } catch (err) {
+          console.error("Error checking initial status:", err);
         }
-      } catch (err) {
-        console.error('Error checking initial status:', err);
-      }
       }
 
       // When document is ready, check initial status
-      document.addEventListener('DOMContentLoaded', () => {
-      checkInitialStatus();
+      document.addEventListener("DOMContentLoaded", () => {
+        checkInitialStatus();
       });
     </script>
   </body>
