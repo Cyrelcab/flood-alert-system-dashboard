@@ -34,8 +34,7 @@
 
   <body class="g-sidenav-show bg-gray-100">
     <div
-      class="min-height-300 position-absolute w-100"
-      id="flood-risk-gauge-color"
+      class="min-height-300 position-absolute w-100 bg-primary"
     ></div>
     <aside
       class="sidenav bg-white navbar navbar-vertical navbar-expand-xs border-0 border-radius-xl my-3 fixed-start ms-4"
@@ -240,6 +239,7 @@
           </div>
         </div>
         <div class="row mt-6">
+          <!-- Water Surface Monitoring Chart -->
           <div class="col-lg-7 mb-lg-0 mb-4">
             <div class="card z-index-2 h-100">
               <div class="card-header pb-0 pt-3 bg-transparent">
@@ -275,23 +275,46 @@
             </div>
           </div>
 
-          <div class="col-lg-5">
-            <div class="card h-100">
-              <div class="card-header pb-0 p-3">
-                <h6 class="mb-0">Flood Risk Gauge</h6>
+          <!-- Gauges Row -->
+          <div class="col-lg-5 mb-lg-0 mb-4">
+            <div class="row">
+              <!-- Flood Risk Gauge -->
+              <div class="col-12 mb-4">
+                <div class="card">
+                  <div class="card-header pb-0 p-3">
+                    <h6 class="mb-0">Flood Risk Gauge</h6>
+                  </div>
+                  <div class="card-body p-3">
+                    <canvas
+                      id="flood-risk-gauge"
+                      style="height: 200px"
+                    ></canvas>
+                  </div>
+                </div>
               </div>
-              <div class="card-body p-3">
-                <canvas id="flood-risk-gauge" style="height: 300px"></canvas>
+
+              <!-- Flow Risk Gauge -->
+              <div class="col-12">
+                <div class="card">
+                  <div class="card-header pb-0 p-3">
+                    <h6 class="mb-0">Flow Risk Gauge</h6>
+                  </div>
+                  <div class="card-body p-3">
+                    <canvas id="flow-risk-gauge" style="height: 200px"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="col-lg-12 py-3">
-            <div class="card h-100">
+
+          <!-- Map Section -->
+          <div class="col-12 mt-4">
+            <div class="card">
               <div class="card-header pb-0 p-3">
                 <h6 class="mb-0">Barangay Lemon Map</h6>
               </div>
               <div class="card-body p-3">
-                <div class="map-container mb-3" style="height: 500px">
+                <div class="map-container" style="height: 500px">
                   <div id="map" style="width: 100%; height: 100%"></div>
                 </div>
 
@@ -655,44 +678,44 @@
     <script>
       // Custom plugin to draw the needle
       const gaugeNeedlePlugin = {
-      id: "gaugeNeedle",
-      afterDatasetDraw(chart, args, options) {
-        // Check if the chart is the Flood Risk Gauge
-        if (chart.canvas.id !== "flood-risk-gauge") {
-        return; // Skip execution for other charts
-        }
+        id: "gaugeNeedle",
+        afterDatasetDraw(chart, args, options) {
+          // Check if the chart is the Flood Risk Gauge
+          if (chart.canvas.id !== "flood-risk-gauge") {
+            return; // Skip execution for other charts
+          }
 
-        const { ctx, chartArea } = chart;
-        const needleValue = options.needleValue || 0; // Default to 0 if undefined
-        const dataTotal = chart.data.datasets[0].data.reduce(
-        (a, b) => a + b,
-        0
-        );
-        const angle = Math.PI + (1 / dataTotal) * needleValue * Math.PI;
+          const { ctx, chartArea } = chart;
+          const needleValue = options.needleValue || 0; // Default to 0 if undefined
+          const dataTotal = chart.data.datasets[0].data.reduce(
+            (a, b) => a + b,
+            0
+          );
+          const angle = Math.PI + (1 / dataTotal) * needleValue * Math.PI;
 
-        const needleRadius = (chartArea.width / 2) * 0.65; // Adjust the needle length
-        const needleCenterX = (chartArea.left + chartArea.right) / 2;
-        const needleCenterY = chartArea.bottom;
+          const needleRadius = (chartArea.width / 2) * 0.40; // Adjust the needle length
+          const needleCenterX = (chartArea.left + chartArea.right) / 2;
+          const needleCenterY = chartArea.bottom;
 
-        // Draw the needle
-        ctx.save();
-        ctx.translate(needleCenterX, needleCenterY);
-        ctx.rotate(angle);
-        ctx.beginPath();
-        ctx.moveTo(0, -5);
-        ctx.lineTo(needleRadius, 0);
-        ctx.lineTo(0, 5);
-        ctx.fillStyle = "black";
-        ctx.fill();
-        ctx.restore();
+          // Draw the needle
+          ctx.save();
+          ctx.translate(needleCenterX, needleCenterY);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.moveTo(0, -5);
+          ctx.lineTo(needleRadius, 0);
+          ctx.lineTo(0, 5);
+          ctx.fillStyle = "black";
+          ctx.fill();
+          ctx.restore();
 
-        // Draw the needle center
-        ctx.beginPath();
-        ctx.arc(needleCenterX, needleCenterY, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "black";
-        ctx.fill();
-        ctx.restore();
-      },
+          // Draw the needle center
+          ctx.beginPath();
+          ctx.arc(needleCenterX, needleCenterY, 10, 0, Math.PI * 2);
+          ctx.fillStyle = "black";
+          ctx.fill();
+          ctx.restore();
+        },
       };
 
       // Register the plugin globally
@@ -702,85 +725,174 @@
       const ctx = document.getElementById("flood-risk-gauge").getContext("2d");
 
       const floodRiskGauge = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels: ["Normal", "Alert", "Critical"], // Labels for the legend
-        datasets: [
-        {
-          data: [33.33, 33.33, 33.33], // Equal segments for each risk level
-          backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
-          borderWidth: 0,
+        type: "doughnut",
+        data: {
+          labels: ["Normal", "Alert", "Critical"], // Labels for the legend
+          datasets: [
+            {
+              data: [33.33, 33.33, 33.33], // Equal segments for each risk level
+              backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Colors for Low, High, Critical
+              borderWidth: 0,
+            },
+          ],
         },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "70%", // Creates the gauge effect
-        rotation: -90, // Start from the bottom
-        circumference: 180, // Half-circle
-        plugins: {
-        legend: {
-          display: true, // Enable the legend
-          position: "bottom", // Position the legend below the chart
-          labels: {
-          font: {
-            size: 14, // Font size for legend labels
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "70%", // Creates the gauge effect
+          rotation: -90, // Start from the bottom
+          circumference: 180, // Half-circle
+          plugins: {
+            legend: {
+              display: true, // Enable the legend
+              position: "bottom", // Position the legend below the chart
+              labels: {
+                font: {
+                  size: 14, // Font size for legend labels
+                },
+                color: "#333", // Font color for legend labels
+                padding: 23, // Padding between legend items
+              },
+            },
+            tooltip: {
+              enabled: false, // Disable tooltips
+            },
+            gaugeNeedle: {
+              needleValue: 0, // Initial needle value
+            },
           },
-          color: "#333", // Font color for legend labels
-          padding: 23, // Padding between legend items
-          },
         },
-        tooltip: {
-          enabled: false, // Disable tooltips
-        },
-        gaugeNeedle: {
-          needleValue: 0, // Initial needle value
-        },
-        },
-      },
       });
 
       // Function to update the gauge dynamically
       function updateFloodRiskGauge(waterLevel) {
+        let needleValue;
+
+        // Determine needle value based on water level conditions
+        if (waterLevel >= 60) {
+          // Low risk - Green
+          needleValue = 16.665; // Middle of first third
+        } else if (waterLevel <= 59 && waterLevel >= 0) {
+          // High risk - Yellow
+          needleValue = 49.995; // Middle of second third
+        } else if (waterLevel < 0) {
+          // Critical risk - Red
+          needleValue = 83.325; // Middle of last third
+        }
+
+        console.log("Updating needle value to:", needleValue);
+
+        // Check if the gaugeNeedle plugin exists
+        if (floodRiskGauge.options.plugins.gaugeNeedle) {
+          // Update the needle value
+          floodRiskGauge.options.plugins.gaugeNeedle.needleValue = needleValue;
+
+          // Update the chart
+          floodRiskGauge.update();
+        } else {
+          console.error(
+            "gaugeNeedle plugin is not defined in the chart options."
+          );
+        }
+      }
+    </script>
+
+    <!-- Script for the Flow Risk Gauge -->
+    <script>
+      // Custom plugin to draw the needle for flow risk gauge
+      const flowGaugeNeedlePlugin = {
+      id: "flowGaugeNeedle",
+      afterDatasetDraw(chart, args, options) {
+        if (chart.canvas.id !== "flow-risk-gauge") {
+        return; // Only run for flow risk gauge
+        }
+
+        const { ctx, chartArea } = chart;
+        const needleValue = options.needleValue || 0;
+        const dataTotal = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+        const angle = Math.PI + (1 / dataTotal) * needleValue * Math.PI;
+
+        const needleRadius = (chartArea.width / 2) * 0.40;
+        const centerX = (chartArea.left + chartArea.right) / 2;
+        const centerY = chartArea.bottom;
+
+        // Draw needle
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(0, -5);
+        ctx.lineTo(needleRadius, 0);
+        ctx.lineTo(0, 5);
+        ctx.fillStyle = "black";
+        ctx.fill();
+        ctx.restore();
+
+        // Draw center point
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "black";
+        ctx.fill();
+      }
+      };
+
+      Chart.register(flowGaugeNeedlePlugin);
+
+      // Initialize flow risk gauge
+      const flowCtx = document.getElementById("flow-risk-gauge").getContext("2d");
+      const flowRiskGauge = new Chart(flowCtx, {
+      type: "doughnut",
+      data: {
+        labels: ["Normal Flow", "Alert Flow", "High Flow"],
+        datasets: [{
+        data: [33.33, 33.33, 33.33],
+        backgroundColor: ["#28a745", "#ffc107", "#dc3545"], // Green, Yellow, Red
+        borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "70%",
+        rotation: -90,
+        circumference: 180,
+        plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: {
+          font: { size: 14 },
+          color: "#333",
+          padding: 23
+          }
+        },
+        tooltip: {
+          enabled: false
+        },
+        flowGaugeNeedle: {
+          needleValue: 0
+        }
+        }
+      }
+      });
+
+      // Function to update flow risk gauge
+      function updateFlowRiskGauge(flowRate) {
       let needleValue;
 
-      // Determine needle value based on water level conditions
-      if (waterLevel >= 60) {
-        // Low risk - Green
-        needleValue = 16.665; // Middle of first third
-      } else if (waterLevel <= 59 && waterLevel >= 0) {
-        // High risk - Yellow
-        needleValue = 49.995; // Middle of second third
-      } else if (waterLevel < 0) {
-        // Critical risk - Red
-        needleValue = 83.325; // Middle of last third
+      // Determine needle position based on flow rate
+      if (flowRate < 2) { // Low flow
+        needleValue = 16.665;
+      } else if (flowRate >= 2 && flowRate <= 5) { // Normal flow
+        needleValue = 49.995;
+      } else { // High flow
+        needleValue = 83.325;
       }
 
-      console.log("Updating needle value to:", needleValue);
-
-      // Update background color based on water level conditions
-      const backgroundElement = document.getElementById("flood-risk-gauge-color");
-      if (waterLevel >= 60) {
-        backgroundElement.style.backgroundImage =
-        "linear-gradient(to top right, #1a572b, #28a745)"; // Low - Green
-      } else if (waterLevel <= 59 && waterLevel >= 0) {
-        backgroundElement.style.backgroundImage =
-        "linear-gradient(to top right, #997004, #ffc107)"; // High - Yellow
-      } else {
-        backgroundElement.style.backgroundImage =
-        "linear-gradient(to top right, #831f2b, #dc3545)"; // Critical - Red
-      }
-
-      // Check if the gaugeNeedle plugin exists
-      if (floodRiskGauge.options.plugins.gaugeNeedle) {
-        // Update the needle value
-        floodRiskGauge.options.plugins.gaugeNeedle.needleValue = needleValue;
-
-        // Update the chart
-        floodRiskGauge.update();
-      } else {
-        console.error("gaugeNeedle plugin is not defined in the chart options.");
+      // Update gauge
+      if (flowRiskGauge.options.plugins.flowGaugeNeedle) {
+        flowRiskGauge.options.plugins.flowGaugeNeedle.needleValue = needleValue;
+        flowRiskGauge.update();
       }
       }
     </script>
